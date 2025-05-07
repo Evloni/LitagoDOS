@@ -35,8 +35,21 @@ KERNEL_BIN = $(BUILD_DIR)/kernel.bin
 ISO_IMAGE = $(BUILD_DIR)/Litago.iso
 IDT_ASM = $(SRC_DIR)/interrupts/idt.asm
 IDT_C = $(SRC_DIR)/interrupts/idt.c
+GDT_C = $(SRC_DIR)/interrupts/gdt.c
 IDT_ASM_OBJ = $(BUILD_DIR)/idt.o
 IDT_C_OBJ = $(BUILD_DIR)/idt_c.o
+GDT_C_OBJ = $(BUILD_DIR)/gdt.o
+
+# Add these new variables after your existing file definitions
+DRIVERS_DIR = $(SRC_DIR)/drivers
+VGA_DRIVER_C = $(DRIVERS_DIR)/vga_driver.c
+VGA_DRIVER_OBJ = $(BUILD_DIR)/vga_driver.o
+DRIVER_C = $(SRC_DIR)/drivers/registerDriver.c
+DRIVER_OBJ = $(BUILD_DIR)/registerDriver.o
+KEYBOARD_DRIVER_C = $(DRIVERS_DIR)/keyboardDriver.c
+KEYBOARD_DRIVER_OBJ = $(BUILD_DIR)/keyboardDriver.o
+STRING_C = $(SRC_DIR)/string.c
+STRING_OBJ = $(BUILD_DIR)/string.o
 
 # Default target
 .PHONY: all
@@ -68,39 +81,64 @@ $(IO_OBJ): $(IO_C) | $(BUILD_DIR)
 	@echo "Compiling I/O..."
 	$(CC) $(CFLAGS) $< -o $@
 
-# Compile IDT
+# Compile IDT assembly
 $(IDT_ASM_OBJ): $(IDT_ASM) | $(BUILD_DIR)
 	@echo "Assembling IDT..."
 	$(ASM) $(ASMFLAGS) $< -o $@
 
+# Compile IDT C
 $(IDT_C_OBJ): $(IDT_C) | $(BUILD_DIR)
-	@echo "Compiling IDT..."
+	@echo "Compiling IDT C..."
+	$(CC) $(CFLAGS) $< -o $@
+
+# Compile GDT C
+$(GDT_C_OBJ): $(GDT_C) | $(BUILD_DIR)
+	@echo "Compiling GDT C..."
+	$(CC) $(CFLAGS) $< -o $@
+
+# Compile VGA driver
+$(VGA_DRIVER_OBJ): $(VGA_DRIVER_C) | $(BUILD_DIR)
+	@echo "Compiling VGA driver..."
+	$(CC) $(CFLAGS) $< -o $@
+
+# Compile driver registration
+$(DRIVER_OBJ): $(DRIVER_C) | $(BUILD_DIR)
+	@echo "Compiling driver registration..."
+	$(CC) $(CFLAGS) $< -o $@
+
+# Compile keyboard driver
+$(KEYBOARD_DRIVER_OBJ): $(KEYBOARD_DRIVER_C) | $(BUILD_DIR)
+	@echo "Compiling keyboard driver..."
+	$(CC) $(CFLAGS) $< -o $@
+
+# Compile string functions
+$(STRING_OBJ): $(STRING_C) | $(BUILD_DIR)
+	@echo "Compiling string functions..."
 	$(CC) $(CFLAGS) $< -o $@
 
 # Link kernel
-$(KERNEL_BIN): $(KERNEL_ENTRY_OBJ) $(KERNEL_OBJ) $(VGA_OBJ) $(IO_OBJ) $(IDT_ASM_OBJ) $(IDT_C_OBJ) $(LINK_SCRIPT)
+$(KERNEL_BIN): $(KERNEL_ENTRY_OBJ) $(KERNEL_OBJ) $(VGA_OBJ) $(IO_OBJ) $(IDT_ASM_OBJ) $(IDT_C_OBJ) $(GDT_C_OBJ) $(VGA_DRIVER_OBJ) $(DRIVER_OBJ) $(KEYBOARD_DRIVER_OBJ) $(STRING_OBJ)
 	@echo "Linking kernel..."
-	$(LD) $(LDFLAGS) $(KERNEL_ENTRY_OBJ) $(KERNEL_OBJ) $(VGA_OBJ) $(IO_OBJ) $(IDT_ASM_OBJ) $(IDT_C_OBJ) -o $@
+	$(LD) $(LDFLAGS) $^ -o $@
 
-# Create ISO image
+# Create ISO
 $(ISO_IMAGE): $(KERNEL_BIN) | $(BUILD_DIR)
-	@echo "Creating ISO image..."
+	@echo "Creating ISO..."
 	cp $(KERNEL_BIN) $(ISO_BOOT_DIR)/kernel.bin
-	cp grub.cfg $(ISO_GRUB_DIR)/
+	cp grub.cfg $(ISO_GRUB_DIR)/grub.cfg
 	grub-mkrescue -o $@ $(ISO_DIR)
 
-# Run the OS in QEMU
+# Run in QEMU
 .PHONY: run
 run: $(ISO_IMAGE)
-	@echo "Starting QEMU..."
-	$(QEMU) $(QEMU_FLAGS) -cdrom $(ISO_IMAGE)
+	@echo "Running in QEMU..."
+	$(QEMU) $(QEMU_FLAGS) -cdrom $<
 
 # Clean build files
 .PHONY: clean
 clean:
-	@echo "Cleaning build files..."
+	@echo "Cleaning..."
 	rm -rf $(BUILD_DIR)
-	rm -rf $(ISO_DIR)
 
 # Help target
 .PHONY: help

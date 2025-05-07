@@ -2,6 +2,7 @@
 #define IDT_H
 
 #include <stdint.h>
+#include "system.h"
 
 #define PIC1_COMMAND 0x20
 #define PIC1_DATA 0x21
@@ -10,6 +11,7 @@
 
 extern void irq0(void);
 extern void irq1(void);
+extern void keyboard_handler(struct regs *r);
 
 struct idt_entry {
     uint16_t base_low;
@@ -25,7 +27,7 @@ struct idt_ptr {
 } __attribute__((packed));
 
 void idt_init(void);
-void idt_set_gate(uint8_t num, uint32_t base, uint16_t sel, uint8_t flags);
+void idt_set_gate(uint8_t num, uint32_t base, uint16_t selector, uint8_t flags);
 extern void idt_load(void);
 
 
