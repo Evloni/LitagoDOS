@@ -1,25 +1,28 @@
 # LitagoDOS - Terminal OS Development Roadmap
 
-## Phase 1: Bootloader and Basic Setup
-- [ ] Set up development environment
-  - [ ] Install necessary tools (NASM, GCC, QEMU)
-  - [ ] Configure build system
-- [ ] Create basic bootloader
-  - [ ] Implement BIOS boot sector
-  - [ ] Set up memory segments
-  - [ ] Switch to 32-bit protected mode
-- [ ] Implement basic kernel entry point
-  - [ ] Set up stack
-  - [ ] Initialize basic hardware
+## Phase 1: Bootloader and Basic Setup using multiboot
+- [x] Set up development environment
+  - [x] Install necessary tools (NASM, GCC, QEMU)
+  - [x] Configure build system
+- [x] Create basic bootloader
+  - [x] Implement BIOS boot sector
+  - [x] Set up memory segments
+  - [x] Switch to 32-bit protected mode
+- [x] Implement basic kernel entry point
+  - [x] Set up stack
+  - [x] Initialize basic hardware
 
 ## Phase 2: Kernel Core
 - [ ] Implement basic kernel functions
   - [ ] Memory management
   - [ ] Interrupt handling
   - [ ] Basic I/O operations
-- [ ] Set up terminal interface
-  - [ ] VGA text mode support
-  - [ ] Basic text output
+    - [x] Basic output (VGA text mode)
+    - [ ] Basic input (keyboard)
+- [x] Set up terminal interface
+  - [x] VGA text mode support
+  - [x] Basic text output
+  - [x] Cursor support
   - [ ] Keyboard input handling
 - [ ] Implement basic system calls
 
@@ -64,11 +67,11 @@
   - [ ] Hard disk driver
 
 ## Phase 7: User Interface Enhancements
-- [ ] Improve terminal interface
-  - [ ] Command line editing
+- [x] Improve terminal interface
+  - [x] Command line editing
+  - [x] Color support
+  - [x] Cursor movement
   - [ ] Tab completion
-  - [ ] Color support
-  - [ ] Cursor movement
 - [ ] Add basic text editor
   - [ ] Line editing
   - [ ] File saving/loading
@@ -88,6 +91,23 @@
   - [ ] User manual
   - [ ] Developer guide
   - [ ] API documentation
+
+## Current Progress
+- Successfully implemented GRUB multiboot bootloader
+- Set up basic kernel structure with modular design
+- Implemented VGA text mode driver with:
+  - Text output
+  - Color support
+  - Cursor control
+  - Newline handling
+- Organized code into separate modules (kernel, VGA)
+
+## Next Steps
+1. Implement keyboard input handling
+2. Add interrupt handling
+3. Implement basic memory management
+4. Create simple command parser
+5. Add basic file system support
 
 ## Development Guidelines
 1. Start with the simplest working version and iterate
