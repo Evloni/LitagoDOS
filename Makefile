@@ -33,6 +33,10 @@ VGA_OBJ = $(BUILD_DIR)/vga.o
 IO_OBJ = $(BUILD_DIR)/io.o
 KERNEL_BIN = $(BUILD_DIR)/kernel.bin
 ISO_IMAGE = $(BUILD_DIR)/Litago.iso
+IDT_ASM = $(SRC_DIR)/interrupts/idt.asm
+IDT_C = $(SRC_DIR)/interrupts/idt.c
+IDT_ASM_OBJ = $(BUILD_DIR)/idt.o
+IDT_C_OBJ = $(BUILD_DIR)/idt_c.o
 
 # Default target
 .PHONY: all
@@ -64,10 +68,19 @@ $(IO_OBJ): $(IO_C) | $(BUILD_DIR)
 	@echo "Compiling I/O..."
 	$(CC) $(CFLAGS) $< -o $@
 
+# Compile IDT
+$(IDT_ASM_OBJ): $(IDT_ASM) | $(BUILD_DIR)
+	@echo "Assembling IDT..."
+	$(ASM) $(ASMFLAGS) $< -o $@
+
+$(IDT_C_OBJ): $(IDT_C) | $(BUILD_DIR)
+	@echo "Compiling IDT..."
+	$(CC) $(CFLAGS) $< -o $@
+
 # Link kernel
-$(KERNEL_BIN): $(KERNEL_ENTRY_OBJ) $(KERNEL_OBJ) $(VGA_OBJ) $(IO_OBJ) $(LINK_SCRIPT)
+$(KERNEL_BIN): $(KERNEL_ENTRY_OBJ) $(KERNEL_OBJ) $(VGA_OBJ) $(IO_OBJ) $(IDT_ASM_OBJ) $(IDT_C_OBJ) $(LINK_SCRIPT)
 	@echo "Linking kernel..."
-	$(LD) $(LDFLAGS) $(KERNEL_ENTRY_OBJ) $(KERNEL_OBJ) $(VGA_OBJ) $(IO_OBJ) -o $@
+	$(LD) $(LDFLAGS) $(KERNEL_ENTRY_OBJ) $(KERNEL_OBJ) $(VGA_OBJ) $(IO_OBJ) $(IDT_ASM_OBJ) $(IDT_C_OBJ) -o $@
 
 # Create ISO image
 $(ISO_IMAGE): $(KERNEL_BIN) | $(BUILD_DIR)
