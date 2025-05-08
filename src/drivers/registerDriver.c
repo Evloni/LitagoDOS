@@ -18,6 +18,9 @@ static size_t driver_count = 0;
 // Register a new driver
 bool register_driver(const char* name, bool (*init)(void), bool (*shutdown)(void), void* private_data) {
     if (driver_count >= MAX_DRIVERS) {
+        terminal_setcolor(VGA_COLOR_RED);
+        terminal_writestring("Driver registry full\n");
+        terminal_setcolor(VGA_COLOR_WHITE);
         return false;
     }
     
@@ -33,9 +36,11 @@ bool register_driver(const char* name, bool (*init)(void), bool (*shutdown)(void
 bool init_drivers(void) {
     for (size_t i = 0; i < driver_count; i++) {
         if (!drivers[i].init()) {
-            terminal_writestring("Failed to initialize driver: ");
+            terminal_setcolor(VGA_COLOR_RED);
+            terminal_writestring("Driver initialization failed: ");
             terminal_writestring(drivers[i].name);
             terminal_writestring("\n");
+            terminal_setcolor(VGA_COLOR_WHITE);
             return false;
         }
     }

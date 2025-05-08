@@ -2,6 +2,7 @@
 #include "../include/vga.h"
 #include "../include/string.h"
 #include "../include/driver.h"
+#include "../include/tests/memtest.h"
 #include <stdint.h>
 
 // Shell visual elements
@@ -13,6 +14,8 @@
 // Track the prompt position
 size_t prompt_x = 0;
 size_t prompt_y = 0;
+
+
 
 void draw_header() {
     terminal_setcolor(HEADER_COLOR);
@@ -93,11 +96,14 @@ static void handle_command(const char* command) {
         reboot();
     } else if (strcmp(command, "print") == 0) {
         terminal_writestring("Hello from LitagoDOS!\n");
+    } else if (strcmp(command, "memtest") == 0) {
+        memtest_run();
     } else if (strcmp(command, "help") == 0) {
         terminal_writestring("Available commands:\n");
         terminal_writestring("  shutdown - Shutdown the system\n");
         terminal_writestring("  reboot   - Restart the system\n");
         terminal_writestring("  print    - Print a test message\n");
+        terminal_writestring("  memtest  - Test system memory\n");
         terminal_writestring("  help     - Show this help message\n");
     } else {
         terminal_writestring("Unknown command: ");

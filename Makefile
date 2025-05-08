@@ -22,12 +22,12 @@ ASM_DIR = asm
 INCLUDE_DIR = include
 
 # Files
-KERNEL_ENTRY_ASM = $(ASM_DIR)/kernel_entry.asm
+BOOT_ASM = $(SRC_DIR)/boot.asm
 KERNEL_C = $(SRC_DIR)/kernel.c
 VGA_C = $(SRC_DIR)/vga.c
 IO_C = $(SRC_DIR)/io.c
 LINK_SCRIPT = linker.ld
-KERNEL_ENTRY_OBJ = $(BUILD_DIR)/kernel_entry.o
+BOOT_OBJ = $(BUILD_DIR)/boot.o
 KERNEL_OBJ = $(BUILD_DIR)/kernel.o
 VGA_OBJ = $(BUILD_DIR)/vga.o
 IO_OBJ = $(BUILD_DIR)/io.o
@@ -53,11 +53,25 @@ TIMER_DRIVER_OBJ = $(BUILD_DIR)/timerDriver.o
 STRING_C = $(SRC_DIR)/string.c
 STRING_OBJ = $(BUILD_DIR)/string.o
 SHELL_C = $(SRC_DIR)/shell/shell.c
-SHELL_OBJ = $(BUILD_DIR)/shell.o	
+SHELL_OBJ = $(BUILD_DIR)/shell.o
+
+# Memory management files
+PMM_C = $(SRC_DIR)/memory/pmm.c
+PMM_OBJ = $(BUILD_DIR)/pmm.o
+MEMORY_MAP_C = $(SRC_DIR)/memory/memory_map.c
+MEMORY_MAP_OBJ = $(BUILD_DIR)/memory_map.o
+
+# Library files
+LIBGCC_C = $(SRC_DIR)/libgcc.c
+LIBGCC_OBJ = $(BUILD_DIR)/libgcc.o
+
+# Test source files
+TEST_C = $(SRC_DIR)/tests/memtest.c
+TEST_OBJ = $(BUILD_DIR)/tests/memtest.o
 
 # Default target
 .PHONY: all
-all: $(ISO_IMAGE) run clean
+all: $(ISO_IMAGE) run
 
 # Create build directories
 $(BUILD_DIR):
@@ -65,8 +79,8 @@ $(BUILD_DIR):
 	mkdir -p $(ISO_BOOT_DIR)
 	mkdir -p $(ISO_GRUB_DIR)
 
-# Assemble kernel entry
-$(KERNEL_ENTRY_OBJ): $(KERNEL_ENTRY_ASM) | $(BUILD_DIR)
+# Assemble boot code
+$(BOOT_OBJ): $(BOOT_ASM) | $(BUILD_DIR)
 	@echo "Assembling $<..."
 	$(ASM) $(ASMFLAGS) $< -o $@
 
@@ -130,8 +144,32 @@ $(SHELL_OBJ): $(SHELL_C) | $(BUILD_DIR)
 	@echo "Compiling shell..."
 	$(CC) $(CFLAGS) $< -o $@
 
+# Compile PMM
+$(PMM_OBJ): $(PMM_C) | $(BUILD_DIR)
+	@echo "Compiling PMM..."
+	$(CC) $(CFLAGS) $< -o $@
+
+# Compile Memory Map
+$(MEMORY_MAP_OBJ): $(MEMORY_MAP_C) | $(BUILD_DIR)
+	@echo "Compiling Memory Map..."
+	$(CC) $(CFLAGS) $< -o $@
+
+# Compile libgcc
+$(LIBGCC_OBJ): $(LIBGCC_C) | $(BUILD_DIR)
+	@echo "Compiling libgcc..."
+	$(CC) $(CFLAGS) $< -o $@
+
+# Compile test
+$(TEST_OBJ): $(TEST_C) | $(BUILD_DIR)/tests
+	@echo "Compiling Memory Test..."
+	$(CC) $(CFLAGS) $< -o $@
+
+# Create test directory
+$(BUILD_DIR)/tests:
+	@mkdir -p $@
+
 # Link kernel
-$(KERNEL_BIN): $(KERNEL_ENTRY_OBJ) $(KERNEL_OBJ) $(VGA_OBJ) $(IO_OBJ) $(IDT_ASM_OBJ) $(IDT_C_OBJ) $(GDT_C_OBJ) $(VGA_DRIVER_OBJ) $(DRIVER_OBJ) $(KEYBOARD_DRIVER_OBJ) $(TIMER_DRIVER_OBJ) $(STRING_OBJ) $(SHELL_OBJ)
+$(KERNEL_BIN): $(BOOT_OBJ) $(KERNEL_OBJ) $(VGA_OBJ) $(IO_OBJ) $(IDT_ASM_OBJ) $(IDT_C_OBJ) $(GDT_C_OBJ) $(VGA_DRIVER_OBJ) $(DRIVER_OBJ) $(KEYBOARD_DRIVER_OBJ) $(TIMER_DRIVER_OBJ) $(STRING_OBJ) $(SHELL_OBJ) $(PMM_OBJ) $(MEMORY_MAP_OBJ) $(LIBGCC_OBJ) $(TEST_OBJ)
 	@echo "Linking kernel..."
 	$(LD) $(LDFLAGS) $^ -o $@
 

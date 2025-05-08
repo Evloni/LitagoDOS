@@ -20,7 +20,6 @@ void gdt_set_gate(int num, uint32_t base, uint32_t limit, uint8_t access, uint8_
 
 // Initialize GDT
 void gdt_init() {
-    terminal_writestring("\n=== Initializing GDT ===\n");
 
     gdt_ptr.limit = (sizeof(struct gdt_entry) * 5) - 1;
     gdt_ptr.base = (uint32_t)&gdt;
@@ -53,5 +52,4 @@ void gdt_init() {
     asm volatile("ljmp $0x08, $1f");
     asm volatile("1:");
 
-    terminal_writestring("=== GDT Initialization Complete ===\n\n");
 } 

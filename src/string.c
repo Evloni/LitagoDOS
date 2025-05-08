@@ -57,4 +57,13 @@ int strcmp(const char* s1, const char* s2) {
         s2++;
     }
     return *(unsigned char*)s1 - *(unsigned char*)s2;
+}
+
+// Set memory to a specific value
+void* memset(void* dest, int val, size_t count) {
+    unsigned char* ptr = (unsigned char*)dest;
+    while (count-- > 0) {
+        *ptr++ = (unsigned char)val;
+    }
+    return dest;
 } 

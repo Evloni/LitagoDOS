@@ -45,29 +45,10 @@ void idt_set_gate(uint8_t num, uint32_t base, uint16_t selector, uint8_t flags) 
     idt[num].selector = selector;
     idt[num].zero = 0;
     idt[num].flags = flags;
-    
-    // Debug output for keyboard interrupt gate
-    if (num == 33) {  // IRQ1 (keyboard)
-        terminal_writestring("\nSetting up keyboard interrupt gate (IRQ1):\n");
-        terminal_writestring("Base: 0x");
-        print_hex((base >> 24) & 0xFF);
-        print_hex((base >> 16) & 0xFF);
-        print_hex((base >> 8) & 0xFF);
-        print_hex(base & 0xFF);
-        terminal_putchar('\n');
-        terminal_writestring("Selector: 0x");
-        print_hex((selector >> 8) & 0xFF);
-        print_hex(selector & 0xFF);
-        terminal_putchar('\n');
-        terminal_writestring("Flags: 0x");
-        print_hex(flags);
-        terminal_putchar('\n');
-    }
 }
 
 // Initialize the IDT
 void idt_init() {
-    terminal_writestring("\n=== Initializing IDT ===\n");
     
     // Set up IDT pointer
     idt_ptr.limit = (sizeof(struct idt_entry) * 256) - 1;
@@ -116,10 +97,6 @@ void idt_init() {
     pic_mask &= ~(1 << 1);  // Clear bit 1 to enable keyboard interrupt
     outb(0x21, pic_mask);
     
-    terminal_writestring("\nFinal PIC1 mask: ");
-    print_hex(pic_mask);
-    terminal_putchar('\n');
-    terminal_writestring("(Bit 1 should be 0 for keyboard interrupt to be enabled)\n");
+   
     
-    terminal_writestring("=== IDT Initialization Complete ===\n\n");
 }

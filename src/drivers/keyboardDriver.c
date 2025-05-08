@@ -77,7 +77,9 @@ bool keyboard_shutdown(void) {
 void init_keyboard(void) {
     // Register the keyboard driver
     if (!register_driver("keyboard", keyboard_init, keyboard_shutdown, NULL)) {
-        // If we can't register the driver, we can't continue
+        terminal_setcolor(VGA_COLOR_RED);
+        terminal_writestring("Critical: Keyboard driver registration failed\n");
+        terminal_setcolor(VGA_COLOR_WHITE);
         while(1) { __asm__("hlt"); }
     }
 

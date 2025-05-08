@@ -1,0 +1,29 @@
+# Build output
+/build/
+*.o
+*.obj
+*.bin
+*.iso
+*.elf
+*.map
+*.img
+*.out
+
+# Editor files
+*~
+*.swp
+*.swo
+*.tmp
+.DS_Store
+.vscode/
+.idea/
+*.log
+
+# OS-specific
+isodir/
+
+# Other
+*.d
+*.a
+*.so
+*.mod.c 
