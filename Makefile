@@ -48,8 +48,12 @@ DRIVER_C = $(SRC_DIR)/drivers/registerDriver.c
 DRIVER_OBJ = $(BUILD_DIR)/registerDriver.o
 KEYBOARD_DRIVER_C = $(DRIVERS_DIR)/keyboardDriver.c
 KEYBOARD_DRIVER_OBJ = $(BUILD_DIR)/keyboardDriver.o
+TIMER_DRIVER_C = $(DRIVERS_DIR)/timerDriver.c
+TIMER_DRIVER_OBJ = $(BUILD_DIR)/timerDriver.o
 STRING_C = $(SRC_DIR)/string.c
 STRING_OBJ = $(BUILD_DIR)/string.o
+SHELL_C = $(SRC_DIR)/shell/shell.c
+SHELL_OBJ = $(BUILD_DIR)/shell.o	
 
 # Default target
 .PHONY: all
@@ -111,13 +115,23 @@ $(KEYBOARD_DRIVER_OBJ): $(KEYBOARD_DRIVER_C) | $(BUILD_DIR)
 	@echo "Compiling keyboard driver..."
 	$(CC) $(CFLAGS) $< -o $@
 
+# Compile timer driver
+$(TIMER_DRIVER_OBJ): $(TIMER_DRIVER_C) | $(BUILD_DIR)
+	@echo "Compiling timer driver..."
+	$(CC) $(CFLAGS) $< -o $@
+
 # Compile string functions
 $(STRING_OBJ): $(STRING_C) | $(BUILD_DIR)
 	@echo "Compiling string functions..."
 	$(CC) $(CFLAGS) $< -o $@
 
+# Compile shell
+$(SHELL_OBJ): $(SHELL_C) | $(BUILD_DIR)
+	@echo "Compiling shell..."
+	$(CC) $(CFLAGS) $< -o $@
+
 # Link kernel
-$(KERNEL_BIN): $(KERNEL_ENTRY_OBJ) $(KERNEL_OBJ) $(VGA_OBJ) $(IO_OBJ) $(IDT_ASM_OBJ) $(IDT_C_OBJ) $(GDT_C_OBJ) $(VGA_DRIVER_OBJ) $(DRIVER_OBJ) $(KEYBOARD_DRIVER_OBJ) $(STRING_OBJ)
+$(KERNEL_BIN): $(KERNEL_ENTRY_OBJ) $(KERNEL_OBJ) $(VGA_OBJ) $(IO_OBJ) $(IDT_ASM_OBJ) $(IDT_C_OBJ) $(GDT_C_OBJ) $(VGA_DRIVER_OBJ) $(DRIVER_OBJ) $(KEYBOARD_DRIVER_OBJ) $(TIMER_DRIVER_OBJ) $(STRING_OBJ) $(SHELL_OBJ)
 	@echo "Linking kernel..."
 	$(LD) $(LDFLAGS) $^ -o $@
 

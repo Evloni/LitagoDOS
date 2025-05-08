@@ -1,5 +1,6 @@
 #include "../include/vga.h"
 #include "../include/io.h"
+#include "../include/keyboardDriver.h"
 #include <stddef.h>
 
 // VGA text mode constants
@@ -12,6 +13,11 @@ static size_t terminal_row;
 static size_t terminal_column;
 static uint8_t terminal_color;
 static uint16_t* terminal_buffer;
+
+// Input buffer for string input
+#define INPUT_BUFFER_SIZE 256
+static char input_buffer[INPUT_BUFFER_SIZE];
+static size_t input_buffer_pos = 0;
 
 // Initialize terminal interface
 void terminal_initialize(void) {
@@ -71,12 +77,20 @@ static void terminal_putentryat(char c, uint8_t color, size_t x, size_t y) {
 
 // Put a character at the current position
 void terminal_putchar(char c) {
-    if (c == '\n') {
+     if (c == '\b') {
+        if (terminal_column > 0) {
+            terminal_column--;
+            terminal_putentryat(' ', terminal_color, terminal_column, terminal_row);
+        }
+        terminal_update_cursor();
+        return;
+    } else if (c == '\n') {
         // Handle newline
         terminal_column = 0;
         if (++terminal_row == VGA_HEIGHT) {
             terminal_row = 0;
         }
+        terminal_update_cursor();
     } else {
         terminal_putentryat(c, terminal_color, terminal_column, terminal_row);
         if (++terminal_column == VGA_WIDTH) {
@@ -85,8 +99,8 @@ void terminal_putchar(char c) {
                 terminal_row = 0;
             }
         }
+        terminal_update_cursor();
     }
-    terminal_update_cursor();
 }
 
 // Write a string of a specific size
@@ -108,6 +122,86 @@ void terminal_update_cursor(void) {
     outb(0x3D5, (uint8_t)(pos & 0xFF));
     outb(0x3D4, 0x0E);
     outb(0x3D5, (uint8_t)((pos >> 8) & 0xFF));
+}
+
+// Clear the terminal screen
+void terminal_clear(void) {
+    // Fill the screen with spaces
+    for (size_t y = 0; y < VGA_HEIGHT; y++) {
+        for (size_t x = 0; x < VGA_WIDTH; x++) {
+            const size_t index = y * VGA_WIDTH + x;
+            terminal_buffer[index] = vga_entry(' ', terminal_color);
+        }
+    }
+    
+    // Reset cursor position
+    terminal_row = 0;
+    terminal_column = 0;
+    terminal_update_cursor();
+}
+
+// Get a single character from keyboard input
+char terminal_getchar(void) {
+    char c;
+    while (1) {
+        // Wait for a key press
+        while (!(inb(0x64) & 1));
+        
+        // Read the scancode
+        uint8_t scancode = inb(0x60);
+        
+        // Check if it's a key press (scancode < 0x80)
+        if (scancode < 0x80) {
+            // Convert scancode to ASCII (simplified version)
+            switch (scancode) {
+                case 0x1C: return '\n';  // Enter
+                case 0x0E: return '\b';  // Backspace
+                default:
+                    if (scancode >= 0x02 && scancode <= 0x0D) {
+                        return "1234567890-="[scancode - 0x02];
+                    } else if (scancode >= 0x10 && scancode <= 0x1B) {
+                        return shift_pressed ? "QWERTYUIOP[]"[scancode - 0x10] : "qwertyuiop[]"[scancode - 0x10];
+                    } else if (scancode >= 0x1E && scancode <= 0x28) {
+                        return shift_pressed ? "ASDFGHJKL;'"[scancode - 0x1E] : "asdfghjkl;'"[scancode - 0x1E];
+                    } else if (scancode >= 0x2C && scancode <= 0x35) {
+                        return shift_pressed ? "ZXCVBNM,./"[scancode - 0x2C] : "zxcvbnm,./"[scancode - 0x2C];
+                    } else if (scancode == 0x39) {
+                        return ' ';  // Space
+                    }
+            }
+        }
+    }
+}
+
+// Get a string from keyboard input
+void terminal_getstring(char* buffer, size_t max_length) {
+    size_t pos = 0;
+    
+    while (pos < max_length - 1) {
+        char c = terminal_getchar();
+        
+        if (c == '\n') {
+            // End of input
+            buffer[pos] = '\0';
+            terminal_putchar('\n');
+            return;
+        } else if (c == '\b') {
+            // Handle backspace
+            if (pos > 0) {
+                pos--;
+                terminal_putchar('\b');
+                terminal_putchar(' ');
+                terminal_putchar('\b');
+            }
+        } else if (c >= 32 && c <= 126) {
+            // Printable character
+            buffer[pos++] = c;
+            terminal_putchar(c);
+        }
+    }
+    
+    // Ensure string is null-terminated
+    buffer[pos] = '\0';
 }
 
 // Initialize VGA

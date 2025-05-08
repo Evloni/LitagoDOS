@@ -20,6 +20,7 @@ struct idt_pointer idt_ptr;
 extern void irq0();
 extern void irq1();
 extern void idt_load(void);
+extern void timer_handler(struct regs *r);
 
 // Helper to print a byte as two hex digits
 static void print_hex(uint8_t value) {

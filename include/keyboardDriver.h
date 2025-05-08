@@ -3,6 +3,7 @@
 
 #include "system.h"
 #include <stdbool.h>
+#include <stdint.h>
 
 // Keyboard ports
 #define KEYBOARD_DATA_PORT    0x60
@@ -15,5 +16,8 @@ bool keyboard_shutdown(void);
 void keyboard_handler(struct regs *r);
 void init_keyboard(void);
 char get_scancode(void);
+
+// External variable for shift state
+extern int shift_pressed;
 
 #endif // KEYBOARD_DRIVER_H 

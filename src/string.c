@@ -48,4 +48,13 @@ char* itoa(int value, char* str, int base) {
     reverse(str, i);
 
     return str;
+}
+
+// Compare two strings
+int strcmp(const char* s1, const char* s2) {
+    while (*s1 && (*s1 == *s2)) {
+        s1++;
+        s2++;
+    }
+    return *(unsigned char*)s1 - *(unsigned char*)s2;
 } 

@@ -26,6 +26,15 @@ irq0:
     mov fs, ax
     mov gs, ax
     
+    ; Align stack to 16 bytes for C function call
+    sub esp, 4
+    
+    extern timer_handler
+    call timer_handler      ; Call C handler
+    
+    ; Restore stack alignment
+    add esp, 4
+    
     ; Send EOI to PIC1
     mov al, 0x20
     out 0x20, al

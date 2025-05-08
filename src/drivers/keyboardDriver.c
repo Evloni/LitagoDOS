@@ -7,6 +7,10 @@
 #include "../../include/system.h"
 #include <stddef.h>
 
+// External prompt position variables
+extern size_t prompt_x;
+extern size_t prompt_y;
+
 // Helper to print a byte as two hex digits
 static void print_hex(uint8_t value) {
     const char *hex = "0123456789ABCDEF";
@@ -32,11 +36,10 @@ static const char scancode_to_ascii_shift[] = {
     '*', 0, ' ', 0
 };
 
-static uint8_t shift_pressed = 0;
+// Shift key state
+int shift_pressed = 0;
 
 bool keyboard_init(void) {
-    terminal_writestring("\n=== Initializing Keyboard ===\n");
-    
     // Wait for keyboard controller to be ready
     while (inb(KEYBOARD_STATUS_PORT) & 0x02);
     
@@ -62,7 +65,6 @@ bool keyboard_init(void) {
     // Enable keyboard
     outb(KEYBOARD_COMMAND_PORT, 0xAE);
     
-    terminal_writestring("=== Keyboard Initialization Complete ===\n\n");
     return true;
 }
 
@@ -95,19 +97,6 @@ void keyboard_handler(struct regs *r) {
             shift_pressed = 1;
             return;
         }
-        
-        // Get ASCII character from scancode
-        char ascii;
-        if (shift_pressed) {
-            ascii = (scancode < sizeof(scancode_to_ascii_shift)) ? scancode_to_ascii_shift[scancode] : 0;
-        } else {
-            ascii = (scancode < sizeof(scancode_to_ascii)) ? scancode_to_ascii[scancode] : 0;
-        }
-        
-        // Only print if it's a printable character
-        if (ascii >= 32 && ascii <= 126) {
-            terminal_putchar(ascii);
-        }
     } else {
         // Handle key release
         if (scancode == 0xAA) {  // Left shift release
@@ -121,4 +110,4 @@ void keyboard_handler(struct regs *r) {
 
 char get_scancode(void) {
     return inb(0x60);
-} 
+}

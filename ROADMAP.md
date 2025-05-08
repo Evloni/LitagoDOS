@@ -15,15 +15,17 @@
 ## Phase 2: Kernel Core
 - [ ] Implement basic kernel functions
   - [ ] Memory management
-  - [ ] Interrupt handling
-  - [ ] Basic I/O operations
+  - [x] Interrupt handling
+    - [x] GDT initialization
+    - [x] IDT initialization
+  - [x] Basic I/O operations
     - [x] Basic output (VGA text mode)
-    - [ ] Basic input (keyboard)
+    - [x] Basic input (keyboard driver registration)
 - [x] Set up terminal interface
   - [x] VGA text mode support
   - [x] Basic text output
   - [x] Cursor support
-  - [ ] Keyboard input handling
+  - [x] Keyboard input handling
 - [ ] Implement basic system calls
 
 ## Phase 3: File System
@@ -58,8 +60,9 @@
   - [ ] TSR program memory management
 
 ## Phase 6: Device Drivers
-- [ ] Implement basic device drivers
-  - [ ] Keyboard driver
+- [x] Implement basic device drivers
+  - [x] VGA driver
+  - [x] Keyboard driver registration
   - [ ] Serial port driver
   - [ ] Timer driver
 - [ ] Add support for additional devices
@@ -100,14 +103,17 @@
   - Color support
   - Cursor control
   - Newline handling
-- Organized code into separate modules (kernel, VGA)
+- Organized code into separate modules (kernel, VGA, drivers)
+- Implemented basic driver system with registration and initialization
+- Added GDT and IDT initialization
+- Set up keyboard driver registration
 
 ## Next Steps
-1. Implement keyboard input handling
-2. Add interrupt handling
-3. Implement basic memory management
-4. Create simple command parser
-5. Add basic file system support
+1. Complete keyboard driver implementation and input handling
+2. Implement basic memory management
+3. Create simple command parser
+4. Add basic file system support
+5. Implement timer driver for system timing
 
 ## Development Guidelines
 1. Start with the simplest working version and iterate

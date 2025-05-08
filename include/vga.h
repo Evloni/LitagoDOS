@@ -35,6 +35,9 @@ void terminal_set_cursor(size_t x, size_t y);
 void terminal_get_cursor(size_t* x, size_t* y);
 void terminal_update_cursor(void);
 void terminal_enable_cursor(void);
+void terminal_clear(void);  // Clear the terminal screen
+char terminal_getchar(void);  // Get a single character
+void terminal_getstring(char* buffer, size_t max_length);  // Get a string
 
 // Helper functions
 static inline uint8_t vga_entry_color(enum vga_color fg, enum vga_color bg) {
