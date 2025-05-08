@@ -27,3 +27,5 @@ isodir/
 *.a
 *.so
 *.mod.c 
+
+kernel.bin

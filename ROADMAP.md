@@ -15,7 +15,11 @@
 
 ## Phase 2: Kernel Core
 - [ ] Implement basic kernel functions
-  - [ ] Memory management
+  - [x] Memory management
+    - [x] Physical memory manager (PMM)
+    - [x] Memory map initialization
+    - [x] Memory allocation/deallocation
+    - [x] Memory testing
   - [x] Interrupt handling
     - [x] GDT initialization
     - [x] IDT initialization
@@ -34,7 +38,7 @@
 - [ ] Design simple file system
   - [ ] Basic directory structure
   - [ ] File operations (create, read, write, delete)
-- [ ] Implement FAT12/16 support
+- [ ] Implement FAT16 support
   - [ ] File system driver
   - [ ] Basic file operations
 
@@ -55,8 +59,10 @@
   - [ ] Program termination handling
 
 ## Phase 5: Memory Management
-- [ ] Implement memory management
-  - [ ] Memory allocation/deallocation
+- [x] Implement basic memory management
+  - [x] Memory allocation/deallocation
+  - [x] Memory map handling
+  - [x] Memory testing
   - [ ] Memory protection
   - [ ] Program loading and unloading
   - [ ] TSR program memory management

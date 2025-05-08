@@ -5,6 +5,7 @@
 #include "../include/tests/memtest.h"
 #include "../include/memory/memory_map.h"
 #include "../include/memory/pmm.h"
+#include "../include/tests/syscall_test.h"
 #include <stdint.h>
 
 // Shell visual elements
@@ -135,7 +136,8 @@ static void handle_command(const char* command) {
         memtest_run();
     } else if (strcmp(command, "memstats") == 0) {
         memstats();
-    
+    } else if (strcmp(command, "syscall") == 0) {
+        test_syscalls();
     } else if (strcmp(command, "help") == 0) {
         terminal_writestring("Available commands:\n");
         terminal_writestring("  shutdown - Shutdown the system\n");
@@ -143,6 +145,7 @@ static void handle_command(const char* command) {
         terminal_writestring("  print    - Print a test message\n");
         terminal_writestring("  memtest  - Test system memory\n");
         terminal_writestring("  memstats - Show memory statistics\n");
+        terminal_writestring("  syscall  - Test system calls\n");
         terminal_writestring("  help     - Show this help message\n");
     } else {
         terminal_writestring("Unknown command: ");

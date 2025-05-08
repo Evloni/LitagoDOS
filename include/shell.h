@@ -19,5 +19,6 @@ bool cmd_help(int argc, char* argv[]);
 bool cmd_clear(int argc, char* argv[]);
 bool cmd_echo(int argc, char* argv[]);
 bool cmd_memtest(int argc, char* argv[]);
+bool cmd_syscall_test(int argc, char* argv[]);
 
 #endif // SHELL_H

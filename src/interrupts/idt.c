@@ -21,6 +21,7 @@ extern void irq0();
 extern void irq1();
 extern void idt_load(void);
 extern void timer_handler(struct regs *r);
+extern void syscall_entry(void);
 
 // Helper to print a byte as two hex digits
 static void print_hex(uint8_t value) {
@@ -85,6 +86,9 @@ void idt_init() {
     
     // Set up keyboard interrupt
     idt_set_gate(0x21, (uint32_t)irq1, 0x08, 0x8E);
+    
+    // Set up syscall handler
+    idt_set_gate(0x80, (uint32_t)syscall_entry, 0x08, 0xEE);
     
     // Load IDT
     asm volatile("lidt (%0)" : : "r" (&idt_ptr));

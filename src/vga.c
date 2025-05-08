@@ -1,11 +1,11 @@
 #include "../include/vga.h"
 #include "../include/io.h"
 #include "../include/keyboardDriver.h"
+#include "../include/string.h"
 #include <stddef.h>
+#include <stdint.h>
 
 // VGA text mode constants
-static const size_t VGA_WIDTH = 80;
-static const size_t VGA_HEIGHT = 25;
 static uint16_t* const VGA_MEMORY = (uint16_t*)0xB8000;
 
 // Current cursor position
@@ -25,8 +25,6 @@ void terminal_initialize(void) {
     terminal_column = 0;
     terminal_color = vga_entry_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
     terminal_buffer = VGA_MEMORY;
-    
-    
     
     // Set cursor size (smaller cursor)
     outb(0x3D4, 0x0A);  // Cursor start register
@@ -64,7 +62,7 @@ void terminal_setcolor(uint8_t color) {
 }
 
 // Put a character at a specific position
-static void terminal_putentryat(char c, uint8_t color, size_t x, size_t y) {
+void terminal_putentryat(char c, uint8_t color, size_t x, size_t y) {
     const size_t index = y * VGA_WIDTH + x;
     terminal_buffer[index] = vga_entry(c, color);
 }
@@ -216,6 +214,40 @@ void terminal_getstring(char* buffer, size_t max_length) {
     
     // Ensure string is null-terminated
     buffer[pos] = '\0';
+}
+
+// Helper function to write an integer to the terminal
+void terminal_writeint(int num) {
+    char buf[32];
+    itoa(num, buf, 10);
+    terminal_writestring(buf);
+}
+
+// Helper function to write a hex number to the terminal
+void terminal_writehex(uint32_t num) {
+    char buf[32];
+    char hex_chars[] = "0123456789ABCDEF";
+    int i = 0;
+    
+    // Convert to hex string
+    do {
+        buf[i++] = hex_chars[num & 0xF];
+        num >>= 4;
+    } while (num > 0);
+    
+    // Add "0x" prefix
+    buf[i++] = 'x';
+    buf[i++] = '0';
+    
+    // Reverse the string
+    for (int j = 0; j < i/2; j++) {
+        char temp = buf[j];
+        buf[j] = buf[i-j-1];
+        buf[i-j-1] = temp;
+    }
+    
+    buf[i] = '\0';
+    terminal_writestring(buf);
 }
 
 // Initialize VGA

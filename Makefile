@@ -68,6 +68,14 @@ LIBGCC_OBJ = $(BUILD_DIR)/libgcc.o
 # Test source files
 TEST_C = $(SRC_DIR)/tests/memtest.c
 TEST_OBJ = $(BUILD_DIR)/tests/memtest.o
+SYSCALL_TEST_C = $(SRC_DIR)/tests/syscall_test.c
+SYSCALL_TEST_OBJ = $(BUILD_DIR)/tests/syscall_test.o
+
+# Add after your other file definitions
+SYSCALL_ASM = $(SRC_DIR)/interrupts/syscall.asm
+SYSCALL_ASM_OBJ = $(BUILD_DIR)/syscall.o
+SYSCALL_C = $(SRC_DIR)/syscall/syscall.c
+SYSCALL_C_OBJ = $(BUILD_DIR)/syscall_c.o
 
 # Default target
 .PHONY: all
@@ -164,12 +172,23 @@ $(TEST_OBJ): $(TEST_C) | $(BUILD_DIR)/tests
 	@echo "Compiling Memory Test..."
 	$(CC) $(CFLAGS) $< -o $@
 
-# Create test directory
-$(BUILD_DIR)/tests:
-	@mkdir -p $@
+# Compile syscall assembly
+$(SYSCALL_ASM_OBJ): $(SYSCALL_ASM) | $(BUILD_DIR)
+	@echo "Assembling syscall..."
+	$(ASM) $(ASMFLAGS) $< -o $@
+
+# Compile syscall C
+$(SYSCALL_C_OBJ): $(SYSCALL_C) | $(BUILD_DIR)
+	@echo "Compiling syscall C..."
+	$(CC) $(CFLAGS) $< -o $@
+
+# Compile syscall test
+$(SYSCALL_TEST_OBJ): $(SYSCALL_TEST_C) | $(BUILD_DIR)
+	@echo "Compiling syscall test..."
+	$(CC) $(CFLAGS) $< -o $@
 
 # Link kernel
-$(KERNEL_BIN): $(BOOT_OBJ) $(KERNEL_OBJ) $(VGA_OBJ) $(IO_OBJ) $(IDT_ASM_OBJ) $(IDT_C_OBJ) $(GDT_C_OBJ) $(VGA_DRIVER_OBJ) $(DRIVER_OBJ) $(KEYBOARD_DRIVER_OBJ) $(TIMER_DRIVER_OBJ) $(STRING_OBJ) $(SHELL_OBJ) $(PMM_OBJ) $(MEMORY_MAP_OBJ) $(LIBGCC_OBJ) $(TEST_OBJ)
+$(KERNEL_BIN): $(BOOT_OBJ) $(KERNEL_OBJ) $(VGA_OBJ) $(IO_OBJ) $(IDT_ASM_OBJ) $(IDT_C_OBJ) $(GDT_C_OBJ) $(VGA_DRIVER_OBJ) $(DRIVER_OBJ) $(KEYBOARD_DRIVER_OBJ) $(TIMER_DRIVER_OBJ) $(STRING_OBJ) $(SHELL_OBJ) $(PMM_OBJ) $(MEMORY_MAP_OBJ) $(LIBGCC_OBJ) $(TEST_OBJ) $(SYSCALL_ASM_OBJ) $(SYSCALL_C_OBJ) $(SYSCALL_TEST_OBJ)
 	@echo "Linking kernel..."
 	$(LD) $(LDFLAGS) $^ -o $@
 
