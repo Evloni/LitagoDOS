@@ -1,6 +1,7 @@
 #include "../include/shell.h"
 #include "../include/vga.h"
 #include "../include/string.h"
+#include "../include/driver.h"
 #include <stdint.h>
 
 // Shell visual elements
@@ -25,7 +26,7 @@ void draw_header() {
     terminal_writestring("|                                                                  |");
     terminal_set_cursor(2, 5);
     terminal_writestring("+------------------------------------------------------------------+");
-    terminal_writestring("\n");
+    terminal_writestring("\n  Type 'help' for a list of commands\n");
 }
 
 void draw_prompt() {
@@ -37,12 +38,67 @@ void draw_prompt() {
     terminal_get_cursor(&prompt_x, &prompt_y);
 }
 
+static void shutdown() {
+    shutdown_drivers();
+    
+    // Try QEMU's shutdown port first
+    outw(0x604, 0x2000);
+    
+    // If that doesn't work, try Bochs shutdown port
+    outw(0xB004, 0x2000);
+    
+    // If we're still here, try the i8042 keyboard controller reset
+    outb(0x64, 0xFE);
+    
+    // If all else fails, just exit QEMU
+    outw(0x604, 0x2000);
+    outw(0x604, 0x2000);  // Send it twice to be sure
+    
+    // If we get here, something went wrong
+    terminal_writestring("Shutdown failed. Please power off manually.\n");
+    while(1) {
+        __asm__("hlt");
+    }
+}
+
+static void reboot() {
+    shutdown_drivers();
+    
+    // Try to reboot using the keyboard controller
+    uint8_t good = 0x02;
+    while (good & 0x02) {
+        good = inb(0x64);
+    }
+    outb(0x64, 0xFE);  // Send reset command to keyboard controller
+    
+    // If that doesn't work, try triple fault
+    // This will cause the CPU to reset
+    asm volatile("lidt 0");  // Load invalid IDT
+    asm volatile("int3");    // Trigger interrupt
+    
+    // If we get here, something went wrong
+    terminal_writestring("Reboot failed. Please reset manually.\n");
+    while(1) {
+        __asm__("hlt");
+    }
+}
+
 // Function to handle shell commands
 static void handle_command(const char* command) {
-    if (strcmp(command, "exit") == 0) {
-        terminal_writestring("Exiting shell...\n");
+    if (strcmp(command, "shutdown") == 0) {
+        terminal_writestring("Shutting down...\n");
+        shutdown();
+    } else if (strcmp(command, "reboot") == 0) {
+        terminal_writestring("Rebooting...\n");
+        reboot();
     } else if (strcmp(command, "print") == 0) {
         terminal_writestring("Hello from LitagoDOS!\n");
+    } else if (strcmp(command, "help") == 0) {
+        terminal_writestring("Available commands:\n");
+        terminal_writestring("  shutdown - Shutdown the system\n");
+        terminal_writestring("  reboot   - Restart the system\n");
+        terminal_writestring("  print    - Print a test message\n");
+        terminal_writestring("  help     - Show this help message\n");
     } else {
         terminal_writestring("Unknown command: ");
         terminal_writestring(command);
