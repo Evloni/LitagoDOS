@@ -3,6 +3,8 @@
 #include "../include/string.h"
 #include "../include/driver.h"
 #include "../include/tests/memtest.h"
+#include "../include/memory/memory_map.h"
+#include "../include/memory/pmm.h"
 #include <stdint.h>
 
 // Shell visual elements
@@ -86,6 +88,39 @@ static void reboot() {
     }
 }
 
+static void print_mem_size(uint64_t bytes) {
+    uint64_t gb = bytes / (1024 * 1024 * 1024);
+    bytes %= (1024 * 1024 * 1024);
+    uint64_t mb = bytes / (1024 * 1024);
+    bytes %= (1024 * 1024);
+    uint64_t kb = bytes / 1024;
+
+    char buf[32];
+    if (gb > 0) {
+        itoa(gb, buf, 10);
+        terminal_writestring(buf);
+        terminal_writestring(" GB ");
+    }
+    if (mb > 0 || gb > 0) {
+        itoa(mb, buf, 10);
+        terminal_writestring(buf);
+        terminal_writestring(" MB ");
+    }
+    itoa(kb, buf, 10);
+    terminal_writestring(buf);
+    terminal_writestring(" KB");
+}
+
+static void memstats() {
+    terminal_writestring("Memory stats:\n  Total memory: ");
+    uint64_t total_bytes = (uint64_t)pmm_get_total_pages() * 4096;
+    print_mem_size(total_bytes);
+    terminal_writestring("\n  Free memory: ");
+    uint64_t free_bytes = (uint64_t)pmm_get_free_pages() * 4096;
+    print_mem_size(free_bytes);
+    terminal_writestring("\n");
+}
+
 // Function to handle shell commands
 static void handle_command(const char* command) {
     if (strcmp(command, "shutdown") == 0) {
@@ -98,12 +133,16 @@ static void handle_command(const char* command) {
         terminal_writestring("Hello from LitagoDOS!\n");
     } else if (strcmp(command, "memtest") == 0) {
         memtest_run();
+    } else if (strcmp(command, "memstats") == 0) {
+        memstats();
+    
     } else if (strcmp(command, "help") == 0) {
         terminal_writestring("Available commands:\n");
         terminal_writestring("  shutdown - Shutdown the system\n");
         terminal_writestring("  reboot   - Restart the system\n");
         terminal_writestring("  print    - Print a test message\n");
         terminal_writestring("  memtest  - Test system memory\n");
+        terminal_writestring("  memstats - Show memory statistics\n");
         terminal_writestring("  help     - Show this help message\n");
     } else {
         terminal_writestring("Unknown command: ");

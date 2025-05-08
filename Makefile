@@ -5,7 +5,7 @@ LD = ld
 
 # Emulator settings
 QEMU = qemu-system-i386
-QEMU_FLAGS = -machine q35
+QEMU_FLAGS = -machine q35 -m 2G
 
 # Flags
 ASMFLAGS = -f elf32

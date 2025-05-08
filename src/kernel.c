@@ -58,7 +58,7 @@ void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 	terminal_setcolor(VGA_COLOR_WHITE);
 	terminal_writestring("Starting shell...\n\n");
 
-	timer_delay_ms(10000);
+	timer_delay_ms(1000);
 
 	shell_init();
 	shell_run();  // Start the shell command processing loop
