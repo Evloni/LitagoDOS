@@ -6,6 +6,7 @@
 #include "../include/memory/memory_map.h"
 #include "../include/memory/pmm.h"
 #include "../include/tests/syscall_test.h"
+#include "../include/version.h"
 #include <stdint.h>
 
 // Shell visual elements
@@ -122,6 +123,17 @@ static void memstats() {
     terminal_writestring("\n");
 }
 
+static void version() {
+    const struct version_info* info = get_version_info();
+    terminal_writestring("LitagoDOS Version ");
+    terminal_writestring(info->version_string);
+    terminal_writestring("\nBuild: ");
+    terminal_writestring(info->build_date);
+    terminal_writestring(" ");
+    terminal_writestring(info->build_time);
+    terminal_writestring("\n");
+}
+
 // Function to handle shell commands
 static void handle_command(const char* command) {
     if (strcmp(command, "shutdown") == 0) {
@@ -138,6 +150,8 @@ static void handle_command(const char* command) {
         memstats();
     } else if (strcmp(command, "syscall") == 0) {
         test_syscalls();
+    } else if (strcmp(command, "version") == 0) {
+        version();
     } else if (strcmp(command, "help") == 0) {
         terminal_writestring("Available commands:\n");
         terminal_writestring("  shutdown - Shutdown the system\n");
@@ -146,6 +160,7 @@ static void handle_command(const char* command) {
         terminal_writestring("  memtest  - Test system memory\n");
         terminal_writestring("  memstats - Show memory statistics\n");
         terminal_writestring("  syscall  - Test system calls\n");
+        terminal_writestring("  version  - Show system version\n");
         terminal_writestring("  help     - Show this help message\n");
     } else {
         terminal_writestring("Unknown command: ");

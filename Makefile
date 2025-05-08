@@ -77,6 +77,10 @@ SYSCALL_ASM_OBJ = $(BUILD_DIR)/syscall.o
 SYSCALL_C = $(SRC_DIR)/syscall/syscall.c
 SYSCALL_C_OBJ = $(BUILD_DIR)/syscall_c.o
 
+# Version files
+VERSION_C = $(SRC_DIR)/version.c
+VERSION_OBJ = $(BUILD_DIR)/version.o
+
 # Default target
 .PHONY: all
 all: $(ISO_IMAGE) run
@@ -187,8 +191,13 @@ $(SYSCALL_TEST_OBJ): $(SYSCALL_TEST_C) | $(BUILD_DIR)
 	@echo "Compiling syscall test..."
 	$(CC) $(CFLAGS) $< -o $@
 
+# Compile version
+$(VERSION_OBJ): $(VERSION_C) | $(BUILD_DIR)
+	@echo "Compiling version..."
+	$(CC) $(CFLAGS) $< -o $@
+
 # Link kernel
-$(KERNEL_BIN): $(BOOT_OBJ) $(KERNEL_OBJ) $(VGA_OBJ) $(IO_OBJ) $(IDT_ASM_OBJ) $(IDT_C_OBJ) $(GDT_C_OBJ) $(VGA_DRIVER_OBJ) $(DRIVER_OBJ) $(KEYBOARD_DRIVER_OBJ) $(TIMER_DRIVER_OBJ) $(STRING_OBJ) $(SHELL_OBJ) $(PMM_OBJ) $(MEMORY_MAP_OBJ) $(LIBGCC_OBJ) $(TEST_OBJ) $(SYSCALL_ASM_OBJ) $(SYSCALL_C_OBJ) $(SYSCALL_TEST_OBJ)
+$(KERNEL_BIN): $(BOOT_OBJ) $(KERNEL_OBJ) $(VGA_OBJ) $(IO_OBJ) $(IDT_ASM_OBJ) $(IDT_C_OBJ) $(GDT_C_OBJ) $(VGA_DRIVER_OBJ) $(DRIVER_OBJ) $(KEYBOARD_DRIVER_OBJ) $(TIMER_DRIVER_OBJ) $(STRING_OBJ) $(SHELL_OBJ) $(PMM_OBJ) $(MEMORY_MAP_OBJ) $(LIBGCC_OBJ) $(TEST_OBJ) $(SYSCALL_ASM_OBJ) $(SYSCALL_C_OBJ) $(SYSCALL_TEST_OBJ) $(VERSION_OBJ)
 	@echo "Linking kernel..."
 	$(LD) $(LDFLAGS) $^ -o $@
 

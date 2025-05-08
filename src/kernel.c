@@ -9,6 +9,7 @@
 #include "../include/timerDriver.h"
 #include "../include/memory/pmm.h"
 #include "../include/memory/memory_map.h"
+#include "../include/version.h"
 #include <stddef.h>
 
 // Multiboot magic number
@@ -19,6 +20,17 @@ void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 	terminal_initialize();
 	terminal_clear();
 	terminal_setcolor(VGA_COLOR_WHITE);
+	
+	// Display version information
+	const struct version_info* info = get_version_info();
+	terminal_writestring("Litago Version ");
+	terminal_writestring(info->version_string);
+	terminal_writestring("\nBuild: ");
+	terminal_writestring(info->build_date);
+	terminal_writestring(" ");
+	terminal_writestring(info->build_time);
+	terminal_writestring("\n\n");
+	
 	terminal_writestring("Initializing kernel...\n\n");
 
 	// Initialize GDT
