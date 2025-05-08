@@ -14,7 +14,7 @@
   - [x] Configure multiboot header correctly
 
 ## Phase 2: Kernel Core
-- [ ] Implement basic kernel functions
+- [x] Implement basic kernel functions
   - [x] Memory management
     - [x] Physical memory manager (PMM)
     - [x] Memory map initialization
@@ -32,7 +32,7 @@
   - [x] Cursor support
   - [x] Keyboard input handling
   - [x] Debug output system
-- [ ] Implement basic system calls
+- [x] Implement basic system calls
 
 ## Phase 3: File System
 - [ ] Design simple file system
@@ -52,7 +52,7 @@
   - [ ] `cd` - Change directory
   - [ ] `cat` - Display file contents
   - [ ] `echo` - Print text
-  - [ ] `help` - Show available commands
+  - [x] `help` - Show available commands
 - [ ] Implement TSR (Terminate and Stay Resident) support
   - [ ] Basic program loading
   - [ ] Memory management for TSR programs

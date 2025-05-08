@@ -66,4 +66,31 @@ void* memset(void* dest, int val, size_t count) {
         *ptr++ = (unsigned char)val;
     }
     return dest;
+}
+
+// Find first occurrence of character in string
+char* strchr(const char* str, int c) {
+    while (*str != '\0') {
+        if (*str == (char)c) {
+            return (char*)str;
+        }
+        str++;
+    }
+    if (c == '\0') {
+        return (char*)str;
+    }
+    return NULL;
+}
+
+// Compare two strings up to n characters
+int strncmp(const char* s1, const char* s2, size_t n) {
+    while (n && *s1 && (*s1 == *s2)) {
+        s1++;
+        s2++;
+        n--;
+    }
+    if (n == 0) {
+        return 0;
+    }
+    return *(unsigned char*)s1 - *(unsigned char*)s2;
 } 

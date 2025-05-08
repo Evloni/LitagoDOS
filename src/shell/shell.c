@@ -125,7 +125,7 @@ static void memstats() {
 
 static void version() {
     const struct version_info* info = get_version_info();
-    terminal_writestring("LitagoDOS Version ");
+    terminal_writestring("Litago Version ");
     terminal_writestring(info->version_string);
     terminal_writestring("\nBuild: ");
     terminal_writestring(info->build_date);
@@ -136,27 +136,37 @@ static void version() {
 
 // Function to handle shell commands
 static void handle_command(const char* command) {
-    if (strcmp(command, "shutdown") == 0) {
+    // Find the first space to separate command and arguments
+    const char* args = strchr(command, ' ');
+    
+    if (strncmp(command, "shutdown", 8) == 0) {
         terminal_writestring("Shutting down...\n");
         shutdown();
-    } else if (strcmp(command, "reboot") == 0) {
+    } else if (strncmp(command, "reboot", 6) == 0) {
         terminal_writestring("Rebooting...\n");
         reboot();
-    } else if (strcmp(command, "print") == 0) {
-        terminal_writestring("Hello from LitagoDOS!\n");
-    } else if (strcmp(command, "memtest") == 0) {
+    } else if (strncmp(command, "echo", 4) == 0) {
+        if (args != NULL) {
+            // Skip the space after "echo"
+            args++;
+            terminal_writestring(args);
+            terminal_writestring("\n");
+        } else {
+            terminal_writestring("\n");
+        }
+    } else if (strncmp(command, "memtest", 7) == 0) {
         memtest_run();
-    } else if (strcmp(command, "memstats") == 0) {
+    } else if (strncmp(command, "memstats", 8) == 0) {
         memstats();
-    } else if (strcmp(command, "syscall") == 0) {
+    } else if (strncmp(command, "syscall", 7) == 0) {
         test_syscalls();
-    } else if (strcmp(command, "version") == 0) {
+    } else if (strncmp(command, "version", 7) == 0) {
         version();
-    } else if (strcmp(command, "help") == 0) {
+    } else if (strncmp(command, "help", 4) == 0) {
         terminal_writestring("Available commands:\n");
         terminal_writestring("  shutdown - Shutdown the system\n");
         terminal_writestring("  reboot   - Restart the system\n");
-        terminal_writestring("  print    - Print a test message\n");
+        terminal_writestring("  echo     - Display text (e.g., echo Hello World)\n");
         terminal_writestring("  memtest  - Test system memory\n");
         terminal_writestring("  memstats - Show memory statistics\n");
         terminal_writestring("  syscall  - Test system calls\n");
