@@ -45,6 +45,8 @@ static const char scancode_to_ascii_shift[] = {
 
 // Shift key state
 int shift_pressed = 0;
+// Caps Lock state
+int caps_lock_on = 0;
 
 // Add a helper function to add to buffer
 static void kbd_buffer_add(char c) {
@@ -126,19 +128,28 @@ void keyboard_handler(struct regs *r) {
         // Handle special keys like shift
         if (scancode == 0x2A || scancode == 0x36) { // Left Shift or Right Shift pressed
             shift_pressed = 1;
-        } else if (scancode == 0x3A) { // Caps Lock (toggle behavior would be more complex)
-            // For now, let's treat Caps Lock as momentary like shift if you want, or ignore
-            // Or implement proper toggle logic if needed
+        } else if (scancode == 0x3A) { // Caps Lock pressed
+            caps_lock_on = !caps_lock_on;
         } else {
             // Regular key press, convert to ASCII
+            char base_char = 0;
             if (shift_pressed) {
-                if (scancode < sizeof(scancode_to_ascii_shift) && scancode_to_ascii_shift[scancode]) {
-                    ascii_char = scancode_to_ascii_shift[scancode];
-                }
+                if (scancode < sizeof(scancode_to_ascii_shift))
+                    base_char = scancode_to_ascii_shift[scancode];
             } else {
-                if (scancode < sizeof(scancode_to_ascii) && scancode_to_ascii[scancode]) {
-                    ascii_char = scancode_to_ascii[scancode];
-                }
+                if (scancode < sizeof(scancode_to_ascii))
+                    base_char = scancode_to_ascii[scancode];
+            }
+
+            // If it's a letter, apply Caps Lock/Shift logic
+            if (base_char >= 'a' && base_char <= 'z') {
+                int upper = shift_pressed ^ caps_lock_on;
+                ascii_char = upper ? (base_char - 'a' + 'A') : base_char;
+            } else if (base_char >= 'A' && base_char <= 'Z') {
+                int lower = shift_pressed ^ caps_lock_on;
+                ascii_char = lower ? (base_char - 'A' + 'a') : base_char;
+            } else {
+                ascii_char = base_char;
             }
 
             if (ascii_char) {

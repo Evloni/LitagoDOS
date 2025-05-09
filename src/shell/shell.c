@@ -160,6 +160,34 @@ static void version() {
     terminal_writestring("\n");
 }
 
+// Simple toupper implementation
+static char toupper(char c) {
+    if (c >= 'a' && c <= 'z') {
+        return c - ('a' - 'A');
+    }
+    return c;
+}
+
+// Converts a user filename (e.g., "TEST.TXT") to FAT16 8.3 format (11 bytes, space padded, uppercase)
+static void filename_to_fat16_8_3(const char* filename, char out[11]) {
+    // Initialize with spaces
+    for (int i = 0; i < 11; ++i) out[i] = ' ';
+    int i = 0, j = 0;
+    // Copy name part (up to 8 chars, stop at dot or end)
+    while (filename[i] && filename[i] != '.' && j < 8) {
+        out[j++] = toupper(filename[i++]);
+    }
+    // If there is a dot, copy extension (up to 3 chars)
+    if (filename[i] == '.') {
+        ++i; // skip dot
+        int k = 8;
+        while (filename[i] && k < 11) {
+            out[k++] = toupper(filename[i++]);
+        }
+    }
+}
+
+// Restore format_fat16_filename for FAT16 8.3 to string conversion
 void format_fat16_filename(const uint8_t input_8_3_name[11], char* output_buffer) {
     int out_idx = 0;
     // Copy name part, skip trailing spaces
@@ -247,6 +275,60 @@ void shell_ls(void) {
     }
 }
 
+void shell_cat(const char* filename) {
+    FAT16_VolumeInfo vol_info;
+    if (fat16_init(0, &vol_info) != 0) {
+        terminal_setcolor(VGA_COLOR_RED);
+        terminal_writestring("Failed to initialize FAT16 filesystem\n");
+        terminal_setcolor(VGA_COLOR_WHITE);
+        return;
+    }
+
+    // Use helper to convert to 8.3 format
+    char name_8_3[11];
+    filename_to_fat16_8_3(filename, name_8_3);
+
+    // Find the file in root directory
+    FAT16_DirectoryEntry file_entry;
+    if (fat16_find_entry_in_root(&vol_info, name_8_3, &file_entry) != 0) {
+        terminal_setcolor(VGA_COLOR_RED);
+        terminal_writestring("File not found: ");
+        terminal_writestring(filename);
+        terminal_writestring("\n");
+        terminal_setcolor(VGA_COLOR_WHITE);
+        return;
+    }
+
+    // Check if it's a directory
+    if ((file_entry.DIR_Attr & ATTR_DIRECTORY) == ATTR_DIRECTORY) {
+        terminal_setcolor(VGA_COLOR_RED);
+        terminal_writestring("Cannot cat a directory: ");
+        terminal_writestring(filename);
+        terminal_writestring("\n");
+        terminal_setcolor(VGA_COLOR_WHITE);
+        return;
+    }
+
+    // Read and display file contents
+    uint8_t buffer[4096]; // Buffer for file contents
+    uint32_t bytes_read;
+    
+    if (fat16_read_file(&vol_info, &file_entry, buffer, sizeof(buffer), &bytes_read) != 0) {
+        terminal_setcolor(VGA_COLOR_RED);
+        terminal_writestring("Error reading file: ");
+        terminal_writestring(filename);
+        terminal_writestring("\n");
+        terminal_setcolor(VGA_COLOR_WHITE);
+        return;
+    }
+
+    // Display file contents
+    for (uint32_t i = 0; i < bytes_read; i++) {
+        terminal_putchar(buffer[i]);
+    }
+    terminal_writestring("\n");
+}
+
 // Function to handle shell commands
 static void handle_command(const char* command) {
     // Find the first space to separate command and arguments
@@ -295,6 +377,14 @@ static void handle_command(const char* command) {
         terminal_writestring("  clear     - Clear the screen\n");
         terminal_writestring("  version   - Show system version\n");
         terminal_writestring("  help      - Show this help message\n");
+    } else if (strncmp(command, "cat", 3) == 0) {
+        if (args != NULL) {
+            // Skip leading spaces
+            while (*args == ' ') args++;
+            shell_cat(args);
+        } else {
+            terminal_writestring("Usage: cat <filename>\n");
+        }
     } else {
         terminal_writestring("Unknown command: ");
         terminal_writestring(command);

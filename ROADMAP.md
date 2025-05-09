@@ -35,13 +35,22 @@
 - [x] Implement basic system calls
 
 ## Phase 3: File System
-- [ ] Design simple file system
-  - [ ] Basic directory structure
-  - [ ] File operations (create, read, write, delete)
-- [~] Implement FAT16 support (read-only root directory listing implemented)
-  - [~] File system driver (read-only, root directory listing)
-  - [ ] File read support (cat)
-  - [ ] File write support
+- [~] Design simple file system
+  - [x] Basic directory structure (FAT16)
+  - [~] File operations
+    - [x] Directory listing (ls)
+    - [x] File reading (cat)
+    - [ ] File writing
+    - [ ] File creation
+    - [ ] File deletion
+- [~] Implement FAT16 support
+  - [x] File system driver initialization
+  - [x] Root directory listing
+  - [ ] Directory traversal
+  - [ ] File reading implementation
+  - [ ] File writing implementation
+  - [ ] File system integrity checks
+  - [ ] Error handling and recovery
 
 ## Phase 4: Shell and Basic Commands
 - [x] Implement command-line shell
@@ -51,7 +60,7 @@
 - [x] Create basic commands
   - [x] `ls` - List root directory contents (read-only)
   - [ ] `cd` - Change directory
-  - [ ] `cat` - Display file contents
+  - [x] `cat` - Display file contents
   - [x] `echo` - Print text
   - [x] `help` - Show available commands
   - [x] `clear` - Clear the screen
@@ -83,7 +92,7 @@
 - [x] Improve terminal interface
   - [x] Command line editing
   - [x] Color support
-  - [ ] Cursor movement
+  - [x] Cursor movement
   - [x] Debug output system
   - [ ] Tab completion
 - [ ] Add basic text editor
@@ -112,6 +121,8 @@
 - FAT16 read-only root directory listing works via `ls` command
 - Disk driver works for reading sectors from a QEMU-attached FAT16 image
 - Modular codebase with clear separation of drivers, shell, and file system
+- Keyboard driver now supports buffered input and proper key handling
+- Terminal interface supports command line editing and cursor movement
 
 ## Next Steps
 1. Implement file reading (`cat` command) from FAT16
