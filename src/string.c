@@ -93,4 +93,70 @@ int strncmp(const char* s1, const char* s2, size_t n) {
         return 0;
     }
     return *(unsigned char*)s1 - *(unsigned char*)s2;
+}
+
+// Copy memory from source to destination
+void* memcpy(void* dest, const void* src, size_t count) {
+    unsigned char* d = (unsigned char*)dest;
+    const unsigned char* s = (const unsigned char*)src;
+    while (count-- > 0) {
+        *d++ = *s++;
+    }
+    return dest;
+}
+
+// Compare memory regions
+int memcmp(const void* ptr1, const void* ptr2, size_t count) {
+    const unsigned char* p1 = (const unsigned char*)ptr1;
+    const unsigned char* p2 = (const unsigned char*)ptr2;
+    while (count-- > 0) {
+        if (*p1++ != *p2++) {
+            return p1[-1] < p2[-1] ? -1 : 1;
+        }
+    }
+    return 0;
+}
+
+// Get string length
+size_t strlen(const char* str) {
+    const char* s = str;
+    while (*s) s++;
+    return s - str;
+}
+
+// Copy string with length limit
+char* strncpy(char* dest, const char* src, size_t count) {
+    char* d = dest;
+    while (count > 0 && *src != '\0') {
+        *d++ = *src++;
+        count--;
+    }
+    while (count > 0) {
+        *d++ = '\0';
+        count--;
+    }
+    return dest;
+}
+
+// Concatenate strings
+char* strcat(char* dest, const char* src) {
+    char* d = dest;
+    while (*d) d++;
+    while (*src) {
+        *d++ = *src++;
+    }
+    *d = '\0';
+    return dest;
+}
+
+// Concatenate strings with length limit
+char* strncat(char* dest, const char* src, size_t count) {
+    char* d = dest;
+    while (*d) d++;
+    while (count > 0 && *src != '\0') {
+        *d++ = *src++;
+        count--;
+    }
+    *d = '\0';
+    return dest;
 } 
