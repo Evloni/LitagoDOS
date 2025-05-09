@@ -7,7 +7,33 @@
 #include "../include/memory/pmm.h"
 #include "../include/tests/syscall_test.h"
 #include "../include/version.h"
+#include "../include/disk_test.h"
+#include "../include/fat16.h"
 #include <stdint.h>
+
+// Syscall number for read
+#define SYSCALL_READ 1 
+
+// Helper to print a byte as two hex digits (for diagnostics)
+static void shell_print_byte_hex(uint8_t value) {
+    const char *hex_chars = "0123456789ABCDEF";
+    terminal_putchar(hex_chars[(value >> 4) & 0x0F]);
+    terminal_putchar(hex_chars[value & 0x0F]);
+}
+
+// Helper function to make a syscall for reading a character
+static inline char syscall_read_char() {
+    char c;
+    asm volatile (
+        "movl %1, %%eax\n\t"
+        "int $0x80\n\t"
+        "movb %%al, %0"
+        : "=r" (c)         // Output: c
+        : "i" (SYSCALL_READ) // Input: syscall number
+        : "%eax"           // Clobbered: eax (kernel returns value in eax)
+    );
+    return c;
+}
 
 // Shell visual elements
 #define PROMPT_COLOR VGA_COLOR_LIGHT_GREEN
@@ -134,6 +160,93 @@ static void version() {
     terminal_writestring("\n");
 }
 
+void format_fat16_filename(const uint8_t input_8_3_name[11], char* output_buffer) {
+    int out_idx = 0;
+    // Copy name part, skip trailing spaces
+    for (int i = 0; i < 8; ++i) {
+        if (input_8_3_name[i] == ' ') {
+            break;
+        }
+        output_buffer[out_idx++] = input_8_3_name[i];
+    }
+    // Check if there's an extension (first char of ext part is not space)
+    if (input_8_3_name[8] != ' ') {
+        output_buffer[out_idx++] = '.';
+        for (int i = 0; i < 3; ++i) {
+            if (input_8_3_name[8 + i] == ' ') {
+                break;
+            }
+            output_buffer[out_idx++] = input_8_3_name[8 + i];
+        }
+    }
+    output_buffer[out_idx] = '\0';
+}
+
+void shell_ls(void) {
+    FAT16_VolumeInfo vol_info;
+    if (fat16_init(0, &vol_info) != 0) {
+        terminal_setcolor(VGA_COLOR_RED);
+        terminal_writestring("Failed to initialize FAT16 filesystem\n");
+        terminal_setcolor(VGA_COLOR_WHITE);
+        return;
+    }
+
+    terminal_writestring("Type     Size    Name\n");
+    terminal_writestring("--------------------------\n");
+
+    #define MAX_ROOT_ENTRIES_TO_LIST 64
+    FAT16_DirectoryEntry entries[MAX_ROOT_ENTRIES_TO_LIST];
+    int num_found = 0;
+
+    int result = fat16_list_root_directory(&vol_info, entries, MAX_ROOT_ENTRIES_TO_LIST, &num_found);
+
+    if (result != 0) {
+        terminal_writestring("Error listing root directory.\n");
+        return;
+    }
+
+    if (num_found == 0) {
+        terminal_writestring("(empty)\n");
+        return;
+    }
+
+    char formatted_name[13];
+    char size_str[12];
+
+    for (int i = 0; i < num_found; ++i) {
+        format_fat16_filename(entries[i].DIR_Name, formatted_name);
+
+        if ((entries[i].DIR_Attr & ATTR_DIRECTORY) == ATTR_DIRECTORY) {
+            terminal_writestring("DIR      ");
+            terminal_writestring("        ");
+        } else {
+            terminal_writestring("FILE     ");
+            // Print file size
+            int k = 0;
+            uint32_t n = entries[i].DIR_FileSize;
+            if (n == 0) {
+                size_str[k++] = '0';
+            } else {
+                char t[12];
+                int c = 0;
+                while (n > 0) {
+                    t[c++] = (n % 10) + '0';
+                    n /= 10;
+                }
+                for (int z = c - 1; z >= 0; z--) {
+                    size_str[k++] = t[z];
+                }
+            }
+            size_str[k] = '\0';
+            terminal_writestring(size_str);
+            terminal_writestring("    ");
+        }
+
+        terminal_writestring(formatted_name);
+        terminal_writestring("\n");
+    }
+}
+
 // Function to handle shell commands
 static void handle_command(const char* command) {
     // Find the first space to separate command and arguments
@@ -154,6 +267,13 @@ static void handle_command(const char* command) {
         } else {
             terminal_writestring("\n");
         }
+    } else if (strncmp(command, "ls", 2) == 0) {
+        shell_ls();
+    } else if (strncmp(command, "clear", 5) == 0) {
+        terminal_clear();
+        draw_header();
+    } else if (strncmp(command, "disktest", 8) == 0) {
+        run_disk_tests();
     } else if (strncmp(command, "memtest", 7) == 0) {
         memtest_run();
     } else if (strncmp(command, "memstats", 8) == 0) {
@@ -164,14 +284,17 @@ static void handle_command(const char* command) {
         version();
     } else if (strncmp(command, "help", 4) == 0) {
         terminal_writestring("Available commands:\n");
-        terminal_writestring("  shutdown - Shutdown the system\n");
-        terminal_writestring("  reboot   - Restart the system\n");
-        terminal_writestring("  echo     - Display text (e.g., echo Hello World)\n");
-        terminal_writestring("  memtest  - Test system memory\n");
-        terminal_writestring("  memstats - Show memory statistics\n");
-        terminal_writestring("  syscall  - Test system calls\n");
-        terminal_writestring("  version  - Show system version\n");
-        terminal_writestring("  help     - Show this help message\n");
+        terminal_writestring("  shutdown  - Shutdown the system\n");
+        terminal_writestring("  reboot    - Restart the system\n");
+        terminal_writestring("  echo      - Display text (e.g., echo Hello World)\n");
+        terminal_writestring("  ls        - List files in the root directory\n");
+        terminal_writestring("  disktest  - Run disk driver tests\n");
+        terminal_writestring("  memtest   - Test system memory\n");
+        terminal_writestring("  memstats  - Show memory statistics\n");
+        terminal_writestring("  syscall   - Test system calls\n");
+        terminal_writestring("  clear     - Clear the screen\n");
+        terminal_writestring("  version   - Show system version\n");
+        terminal_writestring("  help      - Show this help message\n");
     } else {
         terminal_writestring("Unknown command: ");
         terminal_writestring(command);
@@ -190,7 +313,7 @@ void shell_run() {
     int command_index = 0;
 
     while (1) {
-        char c = terminal_getchar();
+        char c = syscall_read_char();
         
         if (c == '\n') {
             command[command_index] = '\0';

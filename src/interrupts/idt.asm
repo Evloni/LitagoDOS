@@ -70,10 +70,6 @@ irq1:
     ; Restore stack alignment
     add esp, 4
     
-    ; Send EOI to PIC1
-    mov al, 0x20
-    out 0x20, al
-    
     pop gs                  ; Restore segment registers
     pop fs
     pop es

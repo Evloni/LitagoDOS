@@ -10,6 +10,7 @@
 #include "../include/memory/pmm.h"
 #include "../include/memory/memory_map.h"
 #include "../include/version.h"
+#include "../include/disk.h"
 #include <stddef.h>
 
 // Multiboot magic number
@@ -43,6 +44,13 @@ void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 	memory_map_init(multiboot_magic, multiboot_info);
 	pmm_init();
 
+	// Initialize disk subsystem
+	if (disk_init() != 0) {
+		terminal_setcolor(VGA_COLOR_RED);
+		terminal_writestring("Failed to initialize disk subsystem\n");
+		return;
+	}
+
 	// Register and initialize keyboard driver
 	if (!register_driver("keyboard", keyboard_init, keyboard_shutdown, NULL)) {
 		terminal_setcolor(VGA_COLOR_RED);
@@ -73,7 +81,7 @@ void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 	timer_delay_ms(1000);
 
 	shell_init();
-	shell_run();  // Start the shell command processing loop
+	shell_run();
 
 	// Main kernel loop
 	while(1) {

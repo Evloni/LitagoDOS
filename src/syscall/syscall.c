@@ -4,8 +4,18 @@
 #include "../include/io.h"
 #include <stddef.h>
 #include "../include/idt.h"
+#include "../include/keyboardDriver.h"
 // Add after the includes
 extern void syscall_entry(void);
+
+// Helper to print a byte as two hex digits (for kernel diagnostics)
+static void kernel_print_byte_hex(uint8_t value) {
+    const char *hex_chars = "0123456789ABCDEF";
+    // Assuming terminal_putchar is available and works at this stage
+    terminal_putchar(hex_chars[(value >> 4) & 0x0F]);
+    terminal_putchar(hex_chars[value & 0x0F]);
+}
+
 // Syscall handler function
 void syscall_handler(struct regs *r) {
     switch (r->eax) {
@@ -16,9 +26,16 @@ void syscall_handler(struct regs *r) {
             break;
             
         case SYSCALL_READ:
-            // Read from keyboard (implement this based on your keyboard driver)
-            // For now, just return 0
-            r->eax = 0;
+            // Read from keyboard 
+            {
+                char c_kernel = 0;
+                while ((c_kernel = keyboard_getchar()) == 0) {
+                    asm volatile ("sti"); // Enable interrupts
+                    asm volatile ("hlt"); // Wait for an interrupt (e.g., keyboard)
+                    asm volatile ("cli"); // Disable interrupts again before checking buffer
+                }
+                r->eax = c_kernel; // Return the character
+            }
             break;
             
         case SYSCALL_OPEN:

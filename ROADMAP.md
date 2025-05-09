@@ -38,21 +38,24 @@
 - [ ] Design simple file system
   - [ ] Basic directory structure
   - [ ] File operations (create, read, write, delete)
-- [ ] Implement FAT16 support
-  - [ ] File system driver
-  - [ ] Basic file operations
+- [~] Implement FAT16 support (read-only root directory listing implemented)
+  - [~] File system driver (read-only, root directory listing)
+  - [ ] File read support (cat)
+  - [ ] File write support
 
 ## Phase 4: Shell and Basic Commands
-- [ ] Implement command-line shell
-  - [ ] Command parser
+- [x] Implement command-line shell
+  - [x] Command parser
   - [ ] Command history
-  - [ ] Basic command execution
-- [ ] Create basic commands
-  - [ ] `ls` - List directory contents
+  - [x] Basic command execution
+- [x] Create basic commands
+  - [x] `ls` - List root directory contents (read-only)
   - [ ] `cd` - Change directory
   - [ ] `cat` - Display file contents
-  - [ ] `echo` - Print text
+  - [x] `echo` - Print text
   - [x] `help` - Show available commands
+  - [x] `clear` - Clear the screen
+  - [x] `disktest` - Run disk driver tests
 - [ ] Implement TSR (Terminate and Stay Resident) support
   - [ ] Basic program loading
   - [ ] Memory management for TSR programs
@@ -73,15 +76,14 @@
   - [x] Keyboard driver registration
   - [ ] Serial port driver
   - [ ] Timer driver
-- [ ] Add support for additional devices
-  - [ ] Floppy disk driver
-  - [ ] Hard disk driver
+- [~] Add support for additional devices
+  - [x] Hard disk driver (read-only, for FAT16 ls)
 
 ## Phase 7: User Interface Enhancements
 - [x] Improve terminal interface
   - [x] Command line editing
   - [x] Color support
-  - [] Cursor movement
+  - [ ] Cursor movement
   - [x] Debug output system
   - [ ] Tab completion
 - [ ] Add basic text editor
@@ -105,27 +107,19 @@
   - [ ] API documentation
 
 ## Current Progress
-- Successfully implemented GRUB multiboot bootloader with correct header configuration
-- Set up basic kernel structure with modular design
-- Implemented VGA text mode driver with:
-  - Text output
-  - Color support
-  - Cursor control
-  - Newline handling
-  - Debug output system
-- Organized code into separate modules (kernel, VGA, drivers)
-- Implemented basic driver system with registration and initialization
-- Added GDT and IDT initialization
-- Set up keyboard driver registration
-- Implemented proper memory initialization sequence
-- Added debug output system for development
+- Bootloader, kernel, VGA, keyboard, and memory management are implemented and stable
+- Shell is functional with command parsing and basic commands (`ls`, `echo`, `help`, `clear`, `disktest`)
+- FAT16 read-only root directory listing works via `ls` command
+- Disk driver works for reading sectors from a QEMU-attached FAT16 image
+- Modular codebase with clear separation of drivers, shell, and file system
 
 ## Next Steps
-1. Complete keyboard driver implementation and input handling
-2. Implement basic memory management
-3. Create simple command parser
-4. Add basic file system support
-5. Implement timer driver for system timing
+1. Implement file reading (`cat` command) from FAT16
+2. Add support for changing directories (`cd`)
+3. Add file write support (optional, for full FAT16 support)
+4. Implement command history and tab completion in the shell
+5. Add timer and serial port drivers
+6. Expand documentation and add more tests
 
 ## Development Guidelines
 1. Start with the simplest working version and iterate
