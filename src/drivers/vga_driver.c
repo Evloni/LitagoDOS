@@ -1,5 +1,4 @@
 #include "../../include/vga.h"
-#include "../../include/driver.h"
 #include <stdbool.h>
 
 bool vga_driver_init(void) {

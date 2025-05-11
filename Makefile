@@ -5,7 +5,7 @@ LD = ld
 
 # Emulator settings
 QEMU = qemu-system-i386
-QEMU_FLAGS = -machine pc -m 2G -boot d -cdrom build/Litago.iso -drive id=disk,file=fat16.img,if=ide,index=0,media=disk,format=raw
+QEMU_FLAGS = -machine pc -m 2G -boot d -cdrom build/Litago.iso -drive id=disk,file=fat16.img,if=ide,index=0,media=disk,format=raw,cache=none
 
 # Flags
 ASMFLAGS = -f elf32
@@ -45,18 +45,11 @@ DRIVERS_DIR = $(SRC_DIR)/drivers
 FS_DIR = $(SRC_DIR)/fs
 VGA_DRIVER_C = $(DRIVERS_DIR)/vga_driver.c
 VGA_DRIVER_OBJ = $(BUILD_DIR)/vga_driver.o
-DRIVER_C = $(SRC_DIR)/drivers/registerDriver.c
-DRIVER_OBJ = $(BUILD_DIR)/registerDriver.o
 KEYBOARD_DRIVER_C = $(DRIVERS_DIR)/keyboardDriver.c
 KEYBOARD_DRIVER_OBJ = $(BUILD_DIR)/keyboardDriver.o
 TIMER_DRIVER_C = $(DRIVERS_DIR)/timerDriver.c
 TIMER_DRIVER_OBJ = $(BUILD_DIR)/timerDriver.o
-DISK_DRIVER_C = $(DRIVERS_DIR)/disk.c
-DISK_DRIVER_OBJ = $(BUILD_DIR)/disk.o
-DISK_TEST_C = $(SRC_DIR)/tests/disk_test.c
-DISK_TEST_OBJ = $(BUILD_DIR)/disk_test.o
-FAT16_C = $(FS_DIR)/fat16.c
-FAT16_OBJ = $(BUILD_DIR)/fat16.o
+
 STRING_C = $(SRC_DIR)/string.c
 STRING_OBJ = $(BUILD_DIR)/string.o
 SHELL_C = $(SRC_DIR)/shell/shell.c
@@ -87,6 +80,14 @@ SYSCALL_C_OBJ = $(BUILD_DIR)/syscall_c.o
 # Version files
 VERSION_C = $(SRC_DIR)/version.c
 VERSION_OBJ = $(BUILD_DIR)/version.o
+
+# Filesystem files
+FAT16_C = $(FS_DIR)/fat16.c
+FAT16_OBJ = $(BUILD_DIR)/fat16.o
+
+# ATA driver files
+ATA_C = $(DRIVERS_DIR)/ata.c
+ATA_OBJ = $(BUILD_DIR)/ata.o
 
 # Default target
 .PHONY: all
@@ -139,11 +140,6 @@ $(VGA_DRIVER_OBJ): $(VGA_DRIVER_C) | $(BUILD_DIR)
 	@echo "Compiling VGA driver..."
 	$(CC) $(CFLAGS) $< -o $@
 
-# Compile driver registration
-$(DRIVER_OBJ): $(DRIVER_C) | $(BUILD_DIR)
-	@echo "Compiling driver registration..."
-	$(CC) $(CFLAGS) $< -o $@
-
 # Compile keyboard driver
 $(KEYBOARD_DRIVER_OBJ): $(KEYBOARD_DRIVER_C) | $(BUILD_DIR)
 	@echo "Compiling keyboard driver..."
@@ -152,21 +148,6 @@ $(KEYBOARD_DRIVER_OBJ): $(KEYBOARD_DRIVER_C) | $(BUILD_DIR)
 # Compile timer driver
 $(TIMER_DRIVER_OBJ): $(TIMER_DRIVER_C) | $(BUILD_DIR)
 	@echo "Compiling timer driver..."
-	$(CC) $(CFLAGS) $< -o $@
-
-# Compile disk driver
-$(DISK_DRIVER_OBJ): $(DISK_DRIVER_C) | $(BUILD_DIR)
-	@echo "Compiling disk driver..."
-	$(CC) $(CFLAGS) $< -o $@
-
-# Compile disk test
-$(DISK_TEST_OBJ): $(DISK_TEST_C) | $(BUILD_DIR)
-	@echo "Compiling disk test..."
-	$(CC) $(CFLAGS) $< -o $@
-
-# Compile FAT16 filesystem
-$(FAT16_OBJ): $(FAT16_C) | $(BUILD_DIR)
-	@echo "Compiling FAT16 filesystem..."
 	$(CC) $(CFLAGS) $< -o $@
 
 # Compile string functions
@@ -219,8 +200,18 @@ $(VERSION_OBJ): $(VERSION_C) | $(BUILD_DIR)
 	@echo "Compiling version..."
 	$(CC) $(CFLAGS) $< -o $@
 
+# Compile FAT16 filesystem
+$(FAT16_OBJ): $(FAT16_C) | $(BUILD_DIR)
+	@echo "Compiling FAT16 filesystem..."
+	$(CC) $(CFLAGS) $< -o $@
+
+# Compile ATA driver
+$(ATA_OBJ): $(ATA_C) | $(BUILD_DIR)
+	@echo "Compiling ATA driver..."
+	$(CC) $(CFLAGS) $< -o $@
+
 # Link kernel
-$(KERNEL_BIN): $(BOOT_OBJ) $(KERNEL_OBJ) $(VGA_OBJ) $(IO_OBJ) $(IDT_ASM_OBJ) $(IDT_C_OBJ) $(GDT_C_OBJ) $(VGA_DRIVER_OBJ) $(DRIVER_OBJ) $(KEYBOARD_DRIVER_OBJ) $(TIMER_DRIVER_OBJ) $(DISK_DRIVER_OBJ) $(DISK_TEST_OBJ) $(FAT16_OBJ) $(STRING_OBJ) $(SHELL_OBJ) $(PMM_OBJ) $(MEMORY_MAP_OBJ) $(LIBGCC_OBJ) $(TEST_OBJ) $(SYSCALL_ASM_OBJ) $(SYSCALL_C_OBJ) $(SYSCALL_TEST_OBJ) $(VERSION_OBJ)
+$(KERNEL_BIN): $(BOOT_OBJ) $(KERNEL_OBJ) $(VGA_OBJ) $(IO_OBJ) $(IDT_ASM_OBJ) $(IDT_C_OBJ) $(GDT_C_OBJ) $(VGA_DRIVER_OBJ) $(KEYBOARD_DRIVER_OBJ) $(TIMER_DRIVER_OBJ) $(STRING_OBJ) $(SHELL_OBJ) $(PMM_OBJ) $(MEMORY_MAP_OBJ) $(LIBGCC_OBJ) $(TEST_OBJ) $(SYSCALL_ASM_OBJ) $(SYSCALL_C_OBJ) $(SYSCALL_TEST_OBJ) $(VERSION_OBJ) $(FAT16_OBJ) $(ATA_OBJ)
 	@echo "Linking kernel..."
 	$(LD) $(LDFLAGS) $^ -o $@
 

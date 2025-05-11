@@ -4,13 +4,12 @@
 #include "../include/io.h"
 #include "../include/idt.h"
 #include "../include/gdt.h"
-#include "../include/driver.h"
 #include "../include/shell.h"
 #include "../include/timerDriver.h"
 #include "../include/memory/pmm.h"
 #include "../include/memory/memory_map.h"
 #include "../include/version.h"
-#include "../include/disk.h"
+#include "fs/fat16.h"
 #include <stddef.h>
 
 // Multiboot magic number
@@ -44,31 +43,24 @@ void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 	memory_map_init(multiboot_magic, multiboot_info);
 	pmm_init();
 
-	// Initialize disk subsystem
-	if (disk_init() != 0) {
+	// Initialize keyboard driver
+	if (!keyboard_init()) {
 		terminal_setcolor(VGA_COLOR_RED);
-		terminal_writestring("Failed to initialize disk subsystem\n");
+		terminal_writestring("Failed to initialize keyboard driver\n");
 		return;
 	}
 
-	// Register and initialize keyboard driver
-	if (!register_driver("keyboard", keyboard_init, keyboard_shutdown, NULL)) {
+	// Initialize timer driver
+	if (!timer_driver_init()) {
 		terminal_setcolor(VGA_COLOR_RED);
-		terminal_writestring("Failed to register keyboard driver\n");
+		terminal_writestring("Failed to initialize timer driver\n");
 		return;
 	}
 
-	// Register and initialize timer driver
-	if (!register_driver("timer", timer_driver_init, timer_driver_shutdown, NULL)) {
+	// Initialize filesystem
+	if (fat16_init() != 0) {
 		terminal_setcolor(VGA_COLOR_RED);
-		terminal_writestring("Failed to register timer driver\n");
-		return;
-	}
-
-	// Initialize all registered drivers
-	if (!init_drivers()) {
-		terminal_setcolor(VGA_COLOR_RED);
-		terminal_writestring("Failed to initialize all drivers\n");
+		terminal_writestring("Failed to initialize filesystem\n");
 		return;
 	}
 

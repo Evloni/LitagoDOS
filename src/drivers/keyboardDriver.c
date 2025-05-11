@@ -1,6 +1,5 @@
 #include "../../include/keyboardDriver.h"
 #include "../../include/io.h"
-#include "../../include/driver.h"
 #include "../../include/vga.h"
 #include "../../include/idt.h"
 #include "../../include/string.h"
@@ -94,6 +93,11 @@ bool keyboard_init(void) {
     
     // Enable keyboard
     outb(KEYBOARD_COMMAND_PORT, 0xAE);
+
+    // Enable keyboard interrupt (IRQ1)
+    uint8_t pic_mask = inb(0x21);
+    pic_mask &= ~(1 << 1);  // Clear bit 1 to enable keyboard interrupt
+    outb(0x21, pic_mask);
     
     return true;
 }
@@ -102,21 +106,6 @@ bool keyboard_shutdown(void) {
     // Disable keyboard interrupt
     outb(0x21, inb(0x21) | 0x02);
     return true;
-}
-
-void init_keyboard(void) {
-    // Register the keyboard driver
-    if (!register_driver("keyboard", keyboard_init, keyboard_shutdown, NULL)) {
-        terminal_setcolor(VGA_COLOR_RED);
-        terminal_writestring("Critical: Keyboard driver registration failed\n");
-        terminal_setcolor(VGA_COLOR_WHITE);
-        while(1) { __asm__("hlt"); }
-    }
-
-    // Enable keyboard interrupt (IRQ1)
-    uint8_t pic_mask = inb(0x21);
-    pic_mask &= ~(1 << 1);  // Clear bit 1 to enable keyboard interrupt
-    outb(0x21, pic_mask);
 }
 
 void keyboard_handler(struct regs *r) {
