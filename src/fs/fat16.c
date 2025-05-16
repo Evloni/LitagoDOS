@@ -116,8 +116,14 @@ bool fat16_read_root_dir(void) {
         name[idx] = '\0';
 
         // Print name, padded to 12 chars
+        int actual_name_len = strlen(name);
         terminal_writestring(name);
-        for (int s = idx; s < 12; s++) terminal_putchar(' ');
+        for (int s = actual_name_len; s < 12; s++) terminal_putchar(' ');
+
+        // Print extension, padded to 5 chars
+        int actual_ext_len = strlen(name + actual_name_len + 1);
+        terminal_writestring(name + actual_name_len + 1);
+        for (int s = actual_ext_len; s < 5; s++) terminal_putchar(' ');
 
         // Print size or blank for directories, padded to 9 chars
         if (root_dir[i].attributes & FAT16_ATTR_DIRECTORY) {
@@ -148,15 +154,15 @@ bool fat16_read_root_dir(void) {
 }
 
 // Read file contents
-bool fat16_read_file(const char* filename, void* buffer, uint32_t max_size) {
+int fat16_read_file(const char* filename, void* buffer, uint32_t max_size) {
     fat16_dir_entry_t* root_dir = (fat16_dir_entry_t*)malloc(root_dir_sectors * boot_sector.bytes_per_sector);
     if (!root_dir) {
-        return false;
+        return 0;
     }
 
     if (!ata_read_sectors(root_dir_start_sector, root_dir_sectors, root_dir)) {
         free(root_dir);
-        return false;
+        return 0;
     }
 
     // Find file in root directory
@@ -167,14 +173,12 @@ bool fat16_read_file(const char* filename, void* buffer, uint32_t max_size) {
 
         char entry_name[13];
         int name_idx = 0;
-        
         // Copy filename
         for (int j = 0; j < 8; j++) {
             if (root_dir[i].filename[j] != ' ') {
                 entry_name[name_idx++] = root_dir[i].filename[j];
             }
         }
-
         // Add extension if it exists
         if (root_dir[i].extension[0] != ' ') {
             entry_name[name_idx++] = '.';
@@ -194,7 +198,13 @@ bool fat16_read_file(const char* filename, void* buffer, uint32_t max_size) {
 
     if (!file_entry) {
         free(root_dir);
-        return false;
+        return 0;
+    }
+
+    // Check for empty file
+    if (file_entry->file_size == 0) {
+        free(root_dir);
+        return -1; // Special value for empty file
     }
 
     // Read file data
@@ -204,21 +214,17 @@ bool fat16_read_file(const char* filename, void* buffer, uint32_t max_size) {
 
     while (cluster != 0xFFFF && !fat16_is_end_of_chain(cluster)) {
         uint32_t lba = fat16_cluster_to_lba(cluster);
-        
-        if (!ata_read_sectors(lba, boot_sector.sectors_per_cluster, 
-                            data_buffer + bytes_read)) {
+        if (!ata_read_sectors(lba, boot_sector.sectors_per_cluster, data_buffer + bytes_read)) {
             free(root_dir);
-            return false;
+            return 0;
         }
-
         bytes_read += boot_sector.sectors_per_cluster * boot_sector.bytes_per_sector;
         if (bytes_read >= max_size) break;
-
         cluster = fat16_get_next_cluster(cluster);
     }
 
     free(root_dir);
-    return true;
+    return 1;
 }
 
 // List directory contents
@@ -230,4 +236,75 @@ bool fat16_list_directory(const char* path) {
     }
 
     return fat16_read_root_dir();
+}
+
+bool fat16_create_file(const char* filename) {
+    // Only support root directory
+    fat16_dir_entry_t* root_dir = (fat16_dir_entry_t*)malloc(root_dir_sectors * boot_sector.bytes_per_sector);
+    if (!root_dir) return false;
+    if (!ata_read_sectors(root_dir_start_sector, root_dir_sectors, root_dir)) {
+        free(root_dir);
+        return false;
+    }
+
+    // Check if file already exists
+    for (int i = 0; i < boot_sector.root_entries; i++) {
+        if (root_dir[i].filename[0] == 0x00) break;
+        if (root_dir[i].filename[0] == 0xE5) continue;
+        if ((root_dir[i].attributes & FAT16_ATTR_LONG_NAME) == FAT16_ATTR_LONG_NAME) continue;
+        if (root_dir[i].attributes & FAT16_ATTR_VOLUME_ID) continue;
+        // Compare name
+        char entry_name[13];
+        int name_idx = 0;
+        for (int j = 0; j < 8; j++) if (root_dir[i].filename[j] != ' ') entry_name[name_idx++] = root_dir[i].filename[j];
+        if (root_dir[i].extension[0] != ' ') {
+            entry_name[name_idx++] = '.';
+            for (int j = 0; j < 3; j++) if (root_dir[i].extension[j] != ' ') entry_name[name_idx++] = root_dir[i].extension[j];
+        }
+        entry_name[name_idx] = '\0';
+        if (strcmp(entry_name, filename) == 0) {
+            free(root_dir);
+            return false; // File already exists
+        }
+    }
+
+    // Find a free entry
+    int free_idx = -1;
+    for (int i = 0; i < boot_sector.root_entries; i++) {
+        if (root_dir[i].filename[0] == 0x00 || root_dir[i].filename[0] == 0xE5) {
+            free_idx = i;
+            break;
+        }
+    }
+    if (free_idx == -1) {
+        free(root_dir);
+        return false; // No free entry
+    }
+
+    // Parse filename and extension (8.3 format)
+    char name[8] = {' '}, ext[3] = {' '};
+    const char* dot = strchr(filename, '.');
+    int name_len = dot ? (dot - filename) : strlen(filename);
+    if (name_len > 8) name_len = 8;
+    for (int i = 0; i < name_len; i++) name[i] = filename[i];
+    if (dot) {
+        int ext_len = strlen(dot + 1);
+        if (ext_len > 3) ext_len = 3;
+        for (int i = 0; i < ext_len; i++) ext[i] = dot[1 + i];
+    }
+
+    // Write entry
+    memcpy(root_dir[free_idx].filename, name, 8);
+    memcpy(root_dir[free_idx].extension, ext, 3);
+    root_dir[free_idx].attributes = 0;
+    memset(root_dir[free_idx].reserved, 0, 10);
+    root_dir[free_idx].time = 0;
+    root_dir[free_idx].date = 0;
+    root_dir[free_idx].starting_cluster = 0;
+    root_dir[free_idx].file_size = 0;
+
+    // Write back root directory
+    bool ok = ata_write_sectors(root_dir_start_sector, root_dir_sectors, root_dir);
+    free(root_dir);
+    return ok;
 } 

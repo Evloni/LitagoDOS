@@ -52,7 +52,7 @@ typedef struct {
 // Function prototypes
 bool fat16_init(void);
 bool fat16_read_root_dir(void);
-bool fat16_read_file(const char* filename, void* buffer, uint32_t max_size);
+int fat16_read_file(const char* filename, void* buffer, uint32_t max_size);
 bool fat16_write_file(const char* filename, const void* buffer, uint32_t size);
 bool fat16_create_file(const char* filename);
 bool fat16_delete_file(const char* filename);

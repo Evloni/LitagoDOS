@@ -154,7 +154,10 @@ static void handle_command(const char* command) {
             return;
         }
 
-        if (fat16_read_file(filename, buffer, 4096)) {
+        int result = fat16_read_file(filename, buffer, 4096);
+        if (result == -1) {
+            terminal_writestring("Can't read a empty file\n");
+        } else if (result) {
             terminal_writestring(buffer);
             terminal_writestring("\n");
         } else {
@@ -196,6 +199,18 @@ static void handle_command(const char* command) {
         test_syscalls();
     } else if (strncmp(command, "version", 7) == 0) {
         version();
+    } else if (strncmp(command, "mkfile", 6) == 0) {
+        const char* filename = command + 6;
+        while (*filename == ' ') filename++;
+        if (*filename == '\0') {
+            terminal_writestring("Usage: mkfile <filename>\n");
+            return;
+        }
+        if (fat16_create_file(filename)) {
+            terminal_writestring("File created successfully\n");
+        } else {
+            terminal_writestring("Failed to create file (already exists, no space, or error)\n");
+        }
     } else {
         terminal_writestring("Unknown command: ");
         terminal_writestring(command);
