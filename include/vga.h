@@ -26,7 +26,6 @@ enum vga_color {
     VGA_COLOR_LIGHT_MAGENTA = 13,
     VGA_COLOR_LIGHT_BROWN = 14,
     VGA_COLOR_WHITE = 15,
-    VGA_COLOR_YELLOW = 16,
 };
 
 // Function declarations

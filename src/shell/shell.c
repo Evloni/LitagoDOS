@@ -8,30 +8,6 @@
 #include "../include/version.h"
 #include <stdint.h>
 
-// Syscall number for read
-#define SYSCALL_READ 1 
-
-// Helper to print a byte as two hex digits (for diagnostics)
-static void shell_print_byte_hex(uint8_t value) {
-    const char *hex_chars = "0123456789ABCDEF";
-    terminal_putchar(hex_chars[(value >> 4) & 0x0F]);
-    terminal_putchar(hex_chars[value & 0x0F]);
-}
-
-// Helper function to make a syscall for reading a character
-static inline char syscall_read_char() {
-    char c;
-    asm volatile (
-        "movl %1, %%eax\n\t"
-        "int $0x80\n\t"
-        "movb %%al, %0"
-        : "=r" (c)         // Output: c
-        : "i" (SYSCALL_READ) // Input: syscall number
-        : "%eax"           // Clobbered: eax (kernel returns value in eax)
-    );
-    return c;
-}
-
 // Shell visual elements
 #define PROMPT_COLOR VGA_COLOR_LIGHT_GREEN
 #define TEXT_COLOR VGA_COLOR_WHITE
@@ -171,9 +147,6 @@ static void handle_command(const char* command) {
         } else {
             terminal_writestring("\n");
         }
-    } else if (strncmp(command, "clear", 5) == 0) {
-        terminal_clear();
-        draw_header();
     } else if (strncmp(command, "memtest", 7) == 0) {
         memtest_run();
     } else if (strncmp(command, "memstats", 8) == 0) {
@@ -184,15 +157,14 @@ static void handle_command(const char* command) {
         version();
     } else if (strncmp(command, "help", 4) == 0) {
         terminal_writestring("Available commands:\n");
-        terminal_writestring("  shutdown  - Shutdown the system\n");
-        terminal_writestring("  reboot    - Restart the system\n");
-        terminal_writestring("  echo      - Display text (e.g., echo Hello World)\n");
-        terminal_writestring("  memtest   - Test system memory\n");
-        terminal_writestring("  memstats  - Show memory statistics\n");
-        terminal_writestring("  syscall   - Test system calls\n");
-        terminal_writestring("  clear     - Clear the screen\n");
-        terminal_writestring("  version   - Show system version\n");
-        terminal_writestring("  help      - Show this help message\n");
+        terminal_writestring("  shutdown - Shutdown the system\n");
+        terminal_writestring("  reboot   - Restart the system\n");
+        terminal_writestring("  echo     - Display text (e.g., echo Hello World)\n");
+        terminal_writestring("  memtest  - Test system memory\n");
+        terminal_writestring("  memstats - Show memory statistics\n");
+        terminal_writestring("  syscall  - Test system calls\n");
+        terminal_writestring("  version  - Show system version\n");
+        terminal_writestring("  help     - Show this help message\n");
     } else {
         terminal_writestring("Unknown command: ");
         terminal_writestring(command);
@@ -211,7 +183,7 @@ void shell_run() {
     int command_index = 0;
 
     while (1) {
-        char c = syscall_read_char();
+        char c = terminal_getchar();
         
         if (c == '\n') {
             command[command_index] = '\0';

@@ -9,7 +9,6 @@
 #include "../include/memory/pmm.h"
 #include "../include/memory/memory_map.h"
 #include "../include/version.h"
-#include "fs/fat16.h"
 #include <stddef.h>
 
 // Multiboot magic number
@@ -43,13 +42,6 @@ void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 	memory_map_init(multiboot_magic, multiboot_info);
 	pmm_init();
 
-	// Initialize keyboard driver
-	if (!keyboard_init()) {
-		terminal_setcolor(VGA_COLOR_RED);
-		terminal_writestring("Failed to initialize keyboard driver\n");
-		return;
-	}
-
 	// Initialize timer driver
 	if (!timer_driver_init()) {
 		terminal_setcolor(VGA_COLOR_RED);
@@ -73,7 +65,7 @@ void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 	timer_delay_ms(1000);
 
 	shell_init();
-	shell_run();
+	shell_run();  // Start the shell command processing loop
 
 	// Main kernel loop
 	while(1) {

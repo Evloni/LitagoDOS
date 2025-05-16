@@ -1,6 +1,5 @@
 {
     "files.associations": {
-        "timerdriver.h": "c",
-        "stddef.h": "c"
+        "timerdriver.h": "c"
     }
 }

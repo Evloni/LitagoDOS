@@ -35,36 +35,25 @@
 - [x] Implement basic system calls
 
 ## Phase 3: File System
-- [~] Design simple file system
-  - [x] Basic directory structure (FAT16)
-  - [~] File operations
-    - [x] Directory listing (ls)
-    - [x] File reading (cat)
-    - [ ] File writing
-    - [ ] File creation
-    - [ ] File deletion
-- [~] Implement FAT16 support
-  - [x] File system driver initialization
-  - [x] Root directory listing
-  - [ ] Directory traversal
-  - [ ] File reading implementation
-  - [ ] File writing implementation
-  - [ ] File system integrity checks
-  - [ ] Error handling and recovery
+- [ ] Design simple file system
+  - [ ] Basic directory structure
+  - [ ] File operations (create, read, write, delete)
+- [~] Implement FAT16 support (read-only root directory listing implemented)
+  - [~] File system driver (read-only, root directory listing)
+  - [ ] File read support (cat)
+  - [ ] File write support
 
 ## Phase 4: Shell and Basic Commands
-- [x] Implement command-line shell
-  - [x] Command parser
+- [ ] Implement command-line shell
+  - [ ] Command parser
   - [ ] Command history
-  - [x] Basic command execution
-- [x] Create basic commands
-  - [x] `ls` - List root directory contents (read-only)
+  - [ ] Basic command execution
+- [ ] Create basic commands
+  - [ ] `ls` - List directory contents
   - [ ] `cd` - Change directory
-  - [x] `cat` - Display file contents
+  - [ ] `cat` - Display file contents
   - [x] `echo` - Print text
   - [x] `help` - Show available commands
-  - [x] `clear` - Clear the screen
-  - [x] `disktest` - Run disk driver tests
 - [ ] Implement TSR (Terminate and Stay Resident) support
   - [ ] Basic program loading
   - [ ] Memory management for TSR programs
@@ -85,14 +74,15 @@
   - [x] Keyboard driver registration
   - [ ] Serial port driver
   - [ ] Timer driver
-- [~] Add support for additional devices
-  - [x] Hard disk driver (read-only, for FAT16 ls)
+- [ ] Add support for additional devices
+  - [ ] Floppy disk driver
+  - [ ] Hard disk driver
 
 ## Phase 7: User Interface Enhancements
 - [x] Improve terminal interface
   - [x] Command line editing
   - [x] Color support
-  - [x] Cursor movement
+  - [ ] Cursor movement
   - [x] Debug output system
   - [ ] Tab completion
 - [ ] Add basic text editor
@@ -121,16 +111,13 @@
 - FAT16 read-only root directory listing works via `ls` command
 - Disk driver works for reading sectors from a QEMU-attached FAT16 image
 - Modular codebase with clear separation of drivers, shell, and file system
-- Keyboard driver now supports buffered input and proper key handling
-- Terminal interface supports command line editing and cursor movement
 
 ## Next Steps
-1. Implement file reading (`cat` command) from FAT16
-2. Add support for changing directories (`cd`)
-3. Add file write support (optional, for full FAT16 support)
-4. Implement command history and tab completion in the shell
-5. Add timer and serial port drivers
-6. Expand documentation and add more tests
+1. Complete keyboard driver implementation and input handling
+2. Implement basic memory management
+3. Create simple command parser
+4. Add basic file system support
+5. Implement timer driver for system timing
 
 ## Development Guidelines
 1. Start with the simplest working version and iterate

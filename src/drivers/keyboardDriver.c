@@ -10,13 +10,6 @@
 extern size_t prompt_x;
 extern size_t prompt_y;
 
-// Keyboard buffer
-#define KBD_BUFFER_SIZE 256
-static char kbd_buffer[KBD_BUFFER_SIZE];
-static volatile size_t kbd_buffer_read_idx = 0;
-static volatile size_t kbd_buffer_write_idx = 0;
-static volatile size_t kbd_buffer_count = 0;
-
 // Helper to print a byte as two hex digits
 static void print_hex(uint8_t value) {
     const char *hex = "0123456789ABCDEF";
@@ -44,29 +37,6 @@ static const char scancode_to_ascii_shift[] = {
 
 // Shift key state
 int shift_pressed = 0;
-// Caps Lock state
-int caps_lock_on = 0;
-
-// Add a helper function to add to buffer
-static void kbd_buffer_add(char c) {
-    if (kbd_buffer_count < KBD_BUFFER_SIZE) {
-        kbd_buffer[kbd_buffer_write_idx] = c;
-        kbd_buffer_write_idx = (kbd_buffer_write_idx + 1) % KBD_BUFFER_SIZE;
-        kbd_buffer_count++;
-    }
-    // Else, buffer is full, character is dropped (or handle error)
-}
-
-// Add a helper function to get from buffer (for later use)
-char keyboard_getchar() {
-    if (kbd_buffer_count == 0) {
-        return 0; // Or some other indicator for empty
-    }
-    char c = kbd_buffer[kbd_buffer_read_idx];
-    kbd_buffer_read_idx = (kbd_buffer_read_idx + 1) % KBD_BUFFER_SIZE;
-    kbd_buffer_count--;
-    return c;
-}
 
 bool keyboard_init(void) {
     // Wait for keyboard controller to be ready
@@ -109,49 +79,22 @@ bool keyboard_shutdown(void) {
 }
 
 void keyboard_handler(struct regs *r) {
-    uint8_t scancode = inb(0x60); // Read scancode from keyboard
-    char ascii_char = 0;
-
+    uint8_t scancode = inb(0x60);
+    
     // Check if it's a key press (scancode < 0x80) or release (scancode >= 0x80)
-    if (scancode < 0x80) { // Key press
-        // Handle special keys like shift
-        if (scancode == 0x2A || scancode == 0x36) { // Left Shift or Right Shift pressed
+    if (scancode < 0x80) {
+        // Handle special keys
+        if (scancode == 0x2A) {  // Left shift
             shift_pressed = 1;
-        } else if (scancode == 0x3A) { // Caps Lock pressed
-            caps_lock_on = !caps_lock_on;
-        } else {
-            // Regular key press, convert to ASCII
-            char base_char = 0;
-            if (shift_pressed) {
-                if (scancode < sizeof(scancode_to_ascii_shift))
-                    base_char = scancode_to_ascii_shift[scancode];
-            } else {
-                if (scancode < sizeof(scancode_to_ascii))
-                    base_char = scancode_to_ascii[scancode];
-            }
-
-            // If it's a letter, apply Caps Lock/Shift logic
-            if (base_char >= 'a' && base_char <= 'z') {
-                int upper = shift_pressed ^ caps_lock_on;
-                ascii_char = upper ? (base_char - 'a' + 'A') : base_char;
-            } else if (base_char >= 'A' && base_char <= 'Z') {
-                int lower = shift_pressed ^ caps_lock_on;
-                ascii_char = lower ? (base_char - 'A' + 'a') : base_char;
-            } else {
-                ascii_char = base_char;
-            }
-
-            if (ascii_char) {
-                kbd_buffer_add(ascii_char); // Add to buffer
-            }
+            return;
         }
-    } else { // Key release
-        scancode -= 0x80; // Convert release code to press code
-        if (scancode == 0x2A || scancode == 0x36) { // Left Shift or Right Shift released
+    } else {
+        // Handle key release
+        if (scancode == 0xAA) {  // Left shift release
             shift_pressed = 0;
         }
     }
-
+    
     // Send EOI to PIC
     outb(0x20, 0x20);
 }

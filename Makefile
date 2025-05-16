@@ -5,7 +5,7 @@ LD = ld
 
 # Emulator settings
 QEMU = qemu-system-i386
-QEMU_FLAGS = -machine pc -m 2G -boot d -cdrom build/Litago.iso -drive id=disk,file=fat16.img,if=ide,index=0,media=disk,format=raw,cache=none
+QEMU_FLAGS = -machine q35 -m 2G
 
 # Flags
 ASMFLAGS = -f elf32
@@ -42,14 +42,12 @@ GDT_C_OBJ = $(BUILD_DIR)/gdt.o
 
 # Add these new variables after your existing file definitions
 DRIVERS_DIR = $(SRC_DIR)/drivers
-FS_DIR = $(SRC_DIR)/fs
 VGA_DRIVER_C = $(DRIVERS_DIR)/vga_driver.c
 VGA_DRIVER_OBJ = $(BUILD_DIR)/vga_driver.o
 KEYBOARD_DRIVER_C = $(DRIVERS_DIR)/keyboardDriver.c
 KEYBOARD_DRIVER_OBJ = $(BUILD_DIR)/keyboardDriver.o
 TIMER_DRIVER_C = $(DRIVERS_DIR)/timerDriver.c
 TIMER_DRIVER_OBJ = $(BUILD_DIR)/timerDriver.o
-
 STRING_C = $(SRC_DIR)/string.c
 STRING_OBJ = $(BUILD_DIR)/string.o
 SHELL_C = $(SRC_DIR)/shell/shell.c
@@ -91,14 +89,13 @@ ATA_OBJ = $(BUILD_DIR)/ata.o
 
 # Default target
 .PHONY: all
-all: $(ISO_IMAGE) run clean
+all: $(ISO_IMAGE) run
 
 # Create build directories
 $(BUILD_DIR):
 	mkdir -p $@
 	mkdir -p $(ISO_BOOT_DIR)
 	mkdir -p $(ISO_GRUB_DIR)
-	mkdir -p $(BUILD_DIR)/tests
 
 # Assemble boot code
 $(BOOT_OBJ): $(BOOT_ASM) | $(BUILD_DIR)
@@ -211,7 +208,7 @@ $(ATA_OBJ): $(ATA_C) | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $< -o $@
 
 # Link kernel
-$(KERNEL_BIN): $(BOOT_OBJ) $(KERNEL_OBJ) $(VGA_OBJ) $(IO_OBJ) $(IDT_ASM_OBJ) $(IDT_C_OBJ) $(GDT_C_OBJ) $(VGA_DRIVER_OBJ) $(KEYBOARD_DRIVER_OBJ) $(TIMER_DRIVER_OBJ) $(STRING_OBJ) $(SHELL_OBJ) $(PMM_OBJ) $(MEMORY_MAP_OBJ) $(LIBGCC_OBJ) $(TEST_OBJ) $(SYSCALL_ASM_OBJ) $(SYSCALL_C_OBJ) $(SYSCALL_TEST_OBJ) $(VERSION_OBJ) $(FAT16_OBJ) $(ATA_OBJ)
+$(KERNEL_BIN): $(BOOT_OBJ) $(KERNEL_OBJ) $(VGA_OBJ) $(IO_OBJ) $(IDT_ASM_OBJ) $(IDT_C_OBJ) $(GDT_C_OBJ) $(VGA_DRIVER_OBJ) $(DRIVER_OBJ) $(KEYBOARD_DRIVER_OBJ) $(TIMER_DRIVER_OBJ) $(STRING_OBJ) $(SHELL_OBJ) $(PMM_OBJ) $(MEMORY_MAP_OBJ) $(LIBGCC_OBJ) $(TEST_OBJ) $(SYSCALL_ASM_OBJ) $(SYSCALL_C_OBJ) $(SYSCALL_TEST_OBJ) $(VERSION_OBJ)
 	@echo "Linking kernel..."
 	$(LD) $(LDFLAGS) $^ -o $@
 
@@ -226,7 +223,7 @@ $(ISO_IMAGE): $(KERNEL_BIN) | $(BUILD_DIR)
 .PHONY: run
 run: $(ISO_IMAGE)
 	@echo "Running in QEMU..."
-	$(QEMU) $(QEMU_FLAGS)
+	$(QEMU) $(QEMU_FLAGS) -cdrom $<
 
 # Clean build files
 .PHONY: clean
@@ -242,7 +239,3 @@ help:
 	@echo "  run     - Run the OS in QEMU"
 	@echo "  clean   - Remove all build files"
 	@echo "  help    - Show this help message"
-
-# Ensure build/tests exists before compiling test objects
-$(BUILD_DIR)/tests:
-	mkdir -p $(BUILD_DIR)/tests
