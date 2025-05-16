@@ -96,7 +96,7 @@ OBJS = $(BOOT_OBJ) $(KERNEL_OBJ) $(VGA_OBJ) $(IO_OBJ) $(IDT_ASM_OBJ) $(IDT_C_OBJ
 
 # Default target
 .PHONY: all
-all: $(ISO_IMAGE) run
+all: $(ISO_IMAGE) run clean
 
 # Create build directories
 $(BUILD_DIR):
@@ -238,7 +238,7 @@ $(ISO_IMAGE): $(KERNEL_BIN) | $(BUILD_DIR)
 .PHONY: run
 run: $(ISO_IMAGE)
 	@echo "Running in QEMU..."
-	qemu-system-i386 -cdrom $(ISO_IMAGE) -hda fat16.img -boot d
+	qemu-system-i386 -machine pc -m 2G -cdrom $(ISO_IMAGE) -hda fat16.img -boot d
 
 # Clean build files
 .PHONY: clean

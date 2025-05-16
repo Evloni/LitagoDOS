@@ -56,10 +56,6 @@
   - [x] `help` - Show available commands
   - [x] `clear` - Clear the terminal
   - [x] `disktest` - Test disk driver
-- [ ] Implement TSR (Terminate and Stay Resident) support
-  - [ ] Basic program loading
-  - [ ] Memory management for TSR programs
-  - [ ] Program termination handling
 
 ## Phase 5: Memory Management
 - [x] Implement basic memory management
@@ -68,8 +64,7 @@
   - [x] Memory testing
   - [ ] Memory protection
   - [ ] Program loading and unloading
-  - [ ] TSR program memory management
-
+  
 ## Phase 6: Device Drivers
 - [x] Implement basic device drivers
   - [x] VGA driver
