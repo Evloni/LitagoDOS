@@ -1,135 +1,233 @@
-
-#include "fat16.h"
-#include "../include/io.h"
-#include "../include/vga.h"
-#include "../drivers/ata.h"
-#include <stddef.h>
+#include "../../include/fs/fat16.h"
+#include "../../include/drivers/ata.h"
+#include "../../include/vga.h"
+#include <string.h>
 
 // Global variables
 static fat16_boot_sector_t boot_sector;
-static uint16_t* fat_table;
+static uint16_t* fat_table = NULL;
+static uint32_t fat_start_sector;
+static uint32_t root_dir_start_sector;
+static uint32_t data_start_sector;
+static uint32_t sectors_per_fat;
 static uint32_t root_dir_sectors;
-static uint32_t first_data_sector;
-static uint32_t first_fat_sector;
 
-// Helper function to read sectors from disk
-static int read_sectors(uint32_t lba, uint8_t sectors, void* buffer) {
-    return ata_read_sectors(lba, sectors, buffer);
-}
-
-// Helper function to write sectors to disk
-static int write_sectors(uint32_t lba, uint8_t sectors, const void* buffer) {
-    return ata_write_sectors(lba, sectors, buffer);
-}
-
-int fat16_init(void) {
-    // Initialize ATA controller
-    ata_init();
-
+// Initialize FAT16 filesystem
+bool fat16_init(void) {
     // Read boot sector
-    if (read_sectors(0, 1, &boot_sector) != 0) {
+    if (!ata_read_sectors(0, 1, &boot_sector)) {
         terminal_writestring("Failed to read boot sector\n");
-        return -1;
+        return false;
     }
 
-    // Calculate important filesystem parameters
-    root_dir_sectors = ((boot_sector.root_entries * 32) + 
-                       (boot_sector.bytes_per_sector - 1)) / 
-                       boot_sector.bytes_per_sector;
-    
-    first_fat_sector = boot_sector.reserved_sectors;
-    first_data_sector = first_fat_sector + 
-                       (boot_sector.number_of_fats * boot_sector.fat_size_16) + 
-                       root_dir_sectors;
+    // Verify FAT16 signature
+    if (boot_sector.fs_type[0] != 'F' || 
+        boot_sector.fs_type[1] != 'A' || 
+        boot_sector.fs_type[2] != 'T' || 
+        boot_sector.fs_type[3] != '1' || 
+        boot_sector.fs_type[4] != '6') {
+        terminal_writestring("Not a FAT16 filesystem\n");
+        return false;
+    }
 
-    // Allocate and read FAT table
-    // TODO: Replace with proper memory allocation
-    fat_table = (uint16_t*)0x100000; // Temporary fixed address
-    if (read_sectors(first_fat_sector, boot_sector.fat_size_16, fat_table) != 0) {
+    // Calculate important sector locations
+    fat_start_sector = boot_sector.reserved_sectors;
+    sectors_per_fat = boot_sector.fat_size_16;
+    root_dir_sectors = ((boot_sector.root_entries * 32) + (boot_sector.bytes_per_sector - 1)) / boot_sector.bytes_per_sector;
+    root_dir_start_sector = fat_start_sector + (sectors_per_fat * boot_sector.num_fats);
+    data_start_sector = root_dir_start_sector + root_dir_sectors;
+
+    // Allocate memory for FAT table
+    fat_table = (uint16_t*)malloc(sectors_per_fat * boot_sector.bytes_per_sector);
+    if (!fat_table) {
+        terminal_writestring("Failed to allocate memory for FAT table\n");
+        return false;
+    }
+
+    // Read FAT table
+    if (!ata_read_sectors(fat_start_sector, sectors_per_fat, fat_table)) {
         terminal_writestring("Failed to read FAT table\n");
-        return -1;
+        free(fat_table);
+        fat_table = NULL;
+        return false;
     }
 
-    terminal_writestring("FAT16 filesystem initialized successfully\n");
-    return 0;
+    return true;
 }
 
-// Helper function to find a file in the root directory
-static fat16_dir_entry_t* find_file(const char* filename) {
-    fat16_dir_entry_t* dir_entry = (fat16_dir_entry_t*)0x200000; // Temporary fixed address
-    uint32_t root_dir_sector = first_fat_sector + 
-                              (boot_sector.number_of_fats * boot_sector.fat_size_16);
+// Convert cluster number to LBA
+uint32_t fat16_cluster_to_lba(uint16_t cluster) {
+    return data_start_sector + ((cluster - 2) * boot_sector.sectors_per_cluster);
+}
 
-    // Search through root directory entries
-    for (uint16_t i = 0; i < boot_sector.root_entries; i++) {
-        if (read_sectors(root_dir_sector + (i / 16), 1, dir_entry) != 0) {
-            return NULL;
+// Get next cluster in chain
+uint16_t fat16_get_next_cluster(uint16_t cluster) {
+    if (cluster < 2 || cluster >= 0xFFF8) {
+        return 0xFFFF;
+    }
+    return fat_table[cluster];
+}
+
+// Check if cluster is end of chain
+bool fat16_is_end_of_chain(uint16_t cluster) {
+    return (cluster >= 0xFFF8);
+}
+
+// Read root directory
+bool fat16_read_root_dir(void) {
+    fat16_dir_entry_t* root_dir = (fat16_dir_entry_t*)malloc(root_dir_sectors * boot_sector.bytes_per_sector);
+    if (!root_dir) {
+        terminal_writestring("Failed to allocate memory for root directory\n");
+        return false;
+    }
+
+    if (!ata_read_sectors(root_dir_start_sector, root_dir_sectors, root_dir)) {
+        terminal_writestring("Failed to read root directory\n");
+        free(root_dir);
+        return false;
+    }
+
+    // Print header
+    terminal_writestring("NAME         SIZE      TYPE    \n");
+    terminal_writestring("-------------------------------\n");
+
+    for (int i = 0; i < boot_sector.root_entries; i++) {
+        // End of directory
+        if (root_dir[i].filename[0] == 0x00) break;
+        // Deleted entry
+        if (root_dir[i].filename[0] == 0xE5) continue;
+        // Skip long filename entries
+        if ((root_dir[i].attributes & FAT16_ATTR_LONG_NAME) == FAT16_ATTR_LONG_NAME) continue;
+        // Skip volume labels
+        if (root_dir[i].attributes & FAT16_ATTR_VOLUME_ID) continue;
+
+        // Format filename
+        char name[13] = {0};
+        int name_len = 8, ext_len = 3;
+        while (name_len > 0 && root_dir[i].filename[name_len - 1] == ' ') name_len--;
+        int idx = 0;
+        for (int j = 0; j < name_len; j++) name[idx++] = root_dir[i].filename[j];
+        // Extension
+        while (ext_len > 0 && root_dir[i].extension[ext_len - 1] == ' ') ext_len--;
+        if (ext_len > 0) {
+            name[idx++] = '.';
+            for (int j = 0; j < ext_len; j++) name[idx++] = root_dir[i].extension[j];
+        }
+        name[idx] = '\0';
+
+        // Print name, padded to 12 chars
+        terminal_writestring(name);
+        for (int s = idx; s < 12; s++) terminal_putchar(' ');
+
+        // Print size or blank for directories, padded to 9 chars
+        if (root_dir[i].attributes & FAT16_ATTR_DIRECTORY) {
+            for (int s = 0; s < 9; s++) terminal_putchar(' ');
+        } else {
+            char size_str[16];
+            itoa(root_dir[i].file_size, size_str, 10);
+            terminal_writestring(size_str);
+            terminal_writestring(" bytes");
+            int len = strlen(size_str) + 6;
+            for (int s = len; s < 9; s++) terminal_putchar(' ');
         }
 
-        dir_entry += (i % 16);
+        // Print type, centered in 8 chars
+        const char* type_str = (root_dir[i].attributes & FAT16_ATTR_DIRECTORY) ? "DIR" : "FILE";
+        int type_len = strlen(type_str);
+        int total_width = 8;
+        int left_pad = (total_width - type_len) / 2;
+        int right_pad = total_width - type_len - left_pad;
+        for (int s = 0; s < left_pad; s++) terminal_putchar(' ');
+        terminal_writestring(type_str);
+        for (int s = 0; s < right_pad; s++) terminal_putchar(' ');
+        terminal_putchar('\n');
+    }
+
+    free(root_dir);
+    return true;
+}
+
+// Read file contents
+bool fat16_read_file(const char* filename, void* buffer, uint32_t max_size) {
+    fat16_dir_entry_t* root_dir = (fat16_dir_entry_t*)malloc(root_dir_sectors * boot_sector.bytes_per_sector);
+    if (!root_dir) {
+        return false;
+    }
+
+    if (!ata_read_sectors(root_dir_start_sector, root_dir_sectors, root_dir)) {
+        free(root_dir);
+        return false;
+    }
+
+    // Find file in root directory
+    fat16_dir_entry_t* file_entry = NULL;
+    for (int i = 0; i < boot_sector.root_entries; i++) {
+        if (root_dir[i].filename[0] == 0x00) break;
+        if (root_dir[i].filename[0] == 0xE5) continue;
+
+        char entry_name[13];
+        int name_idx = 0;
         
-        // Check if this is the file we're looking for
-        if (dir_entry->filename[0] != 0x00 && dir_entry->filename[0] != 0xE5) {
-            char name[13];
-            // TODO: Implement proper string comparison
-            // For now, just return the first valid entry
-            return dir_entry;
+        // Copy filename
+        for (int j = 0; j < 8; j++) {
+            if (root_dir[i].filename[j] != ' ') {
+                entry_name[name_idx++] = root_dir[i].filename[j];
+            }
+        }
+
+        // Add extension if it exists
+        if (root_dir[i].extension[0] != ' ') {
+            entry_name[name_idx++] = '.';
+            for (int j = 0; j < 3; j++) {
+                if (root_dir[i].extension[j] != ' ') {
+                    entry_name[name_idx++] = root_dir[i].extension[j];
+                }
+            }
+        }
+        entry_name[name_idx] = '\0';
+
+        if (strcmp(entry_name, filename) == 0) {
+            file_entry = &root_dir[i];
+            break;
         }
     }
 
-    return NULL;
-}
-
-int fat16_read_file(const char* filename, void* buffer, uint32_t size) {
-    fat16_dir_entry_t* file_entry = find_file(filename);
     if (!file_entry) {
-        terminal_writestring("File not found: ");
-        terminal_writestring(filename);
-        terminal_writestring("\n");
-        return -1;
+        free(root_dir);
+        return false;
     }
 
-    uint16_t cluster = file_entry->first_cluster_low;
+    // Read file data
+    uint16_t cluster = file_entry->starting_cluster;
     uint32_t bytes_read = 0;
-    uint32_t bytes_per_cluster = boot_sector.sectors_per_cluster * 
-                                boot_sector.bytes_per_sector;
+    uint8_t* data_buffer = (uint8_t*)buffer;
 
-    while (cluster != 0xFFFF && bytes_read < size) {
-        uint32_t sector = first_data_sector + 
-                         ((cluster - 2) * boot_sector.sectors_per_cluster);
+    while (cluster != 0xFFFF && !fat16_is_end_of_chain(cluster)) {
+        uint32_t lba = fat16_cluster_to_lba(cluster);
         
-        if (read_sectors(sector, boot_sector.sectors_per_cluster, 
-                       (char*)buffer + bytes_read) != 0) {
-            return -1;
+        if (!ata_read_sectors(lba, boot_sector.sectors_per_cluster, 
+                            data_buffer + bytes_read)) {
+            free(root_dir);
+            return false;
         }
 
-        bytes_read += bytes_per_cluster;
-        cluster = fat_table[cluster];
+        bytes_read += boot_sector.sectors_per_cluster * boot_sector.bytes_per_sector;
+        if (bytes_read >= max_size) break;
+
+        cluster = fat16_get_next_cluster(cluster);
     }
 
-    return bytes_read;
+    free(root_dir);
+    return true;
 }
 
-int fat16_write_file(const char* filename, const void* buffer, uint32_t size) {
-    // TODO: Implement file writing
-    terminal_writestring("File writing not implemented yet\n");
-    return -1;
-}
+// List directory contents
+bool fat16_list_directory(const char* path) {
+    // For now, we only support root directory
+    if (path[0] != '\0' && strcmp(path, "/") != 0) {
+        terminal_writestring("Only root directory is supported\n");
+        return false;
+    }
 
-int fat16_create_file(const char* filename) {
-    // TODO: Implement file creation
-    terminal_writestring("File creation not implemented yet\n");
-    return -1;
-}
-
-int fat16_delete_file(const char* filename) {
-    // TODO: Implement file deletion
-    terminal_writestring("File deletion not implemented yet\n");
-    return -1;
-}
-
-int fat16_list_directory(const char* path) {
-    // TODO: Implement directory listing
-    terminal_writestring("Directory listing not implemented yet\n");
-    return -1;
+    return fat16_read_root_dir();
 } 

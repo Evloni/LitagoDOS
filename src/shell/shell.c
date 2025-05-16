@@ -6,7 +6,9 @@
 #include "../include/memory/pmm.h"
 #include "../include/tests/syscall_test.h"
 #include "../include/version.h"
+#include "../include/fs/fat16.h"
 #include <stdint.h>
+#include <stdbool.h>
 
 // Shell visual elements
 #define PROMPT_COLOR VGA_COLOR_LIGHT_GREEN
@@ -129,19 +131,58 @@ static void version() {
 
 // Function to handle shell commands
 static void handle_command(const char* command) {
-    // Find the first space to separate command and arguments
-    const char* args = strchr(command, ' ');
-    
-    if (strncmp(command, "shutdown", 8) == 0) {
+    if (strncmp(command, "ls", 2) == 0) {
+        const char* path = command + 2;
+        while (*path == ' ') path++;  // Skip spaces
+        
+        if (!fat16_list_directory(path)) {
+            terminal_writestring("Failed to list directory\n");
+        }
+    } else if (strncmp(command, "cat", 3) == 0) {
+        const char* filename = command + 3;
+        while (*filename == ' ') filename++;  // Skip spaces
+        
+        if (*filename == '\0') {
+            terminal_writestring("Usage: cat <filename>\n");
+            return;
+        }
+
+        // Allocate buffer for file contents
+        char* buffer = (char*)malloc(4096);  // 4KB buffer
+        if (!buffer) {
+            terminal_writestring("Failed to allocate memory\n");
+            return;
+        }
+
+        if (fat16_read_file(filename, buffer, 4096)) {
+            terminal_writestring(buffer);
+            terminal_writestring("\n");
+        } else {
+            terminal_writestring("Failed to read file\n");
+        }
+
+        free(buffer);
+    } else if (strncmp(command, "help", 4) == 0) {
+        terminal_writestring("Available commands:\n");
+        terminal_writestring("  ls [path]      - List directory contents\n");
+        terminal_writestring("  cat <file>     - Display file contents\n");
+        terminal_writestring("  echo <text>    - Display text\n");
+        terminal_writestring("  help           - Show this help message\n");
+        terminal_writestring("  shutdown       - Power off the machine\n");
+        terminal_writestring("  reboot         - Reboot the machine\n");
+        terminal_writestring("  memtest        - Run memory test\n");
+        terminal_writestring("  memstats       - Show memory statistics\n");
+        terminal_writestring("  syscall        - Run syscall test\n");
+        terminal_writestring("  version        - Show OS version info\n");
+    } else if (strncmp(command, "shutdown", 8) == 0) {
         terminal_writestring("Shutting down...\n");
         shutdown();
     } else if (strncmp(command, "reboot", 6) == 0) {
         terminal_writestring("Rebooting...\n");
         reboot();
     } else if (strncmp(command, "echo", 4) == 0) {
+        const char* args = command + 4;
         if (args != NULL) {
-            // Skip the space after "echo"
-            args++;
             terminal_writestring(args);
             terminal_writestring("\n");
         } else {
@@ -155,16 +196,6 @@ static void handle_command(const char* command) {
         test_syscalls();
     } else if (strncmp(command, "version", 7) == 0) {
         version();
-    } else if (strncmp(command, "help", 4) == 0) {
-        terminal_writestring("Available commands:\n");
-        terminal_writestring("  shutdown - Shutdown the system\n");
-        terminal_writestring("  reboot   - Restart the system\n");
-        terminal_writestring("  echo     - Display text (e.g., echo Hello World)\n");
-        terminal_writestring("  memtest  - Test system memory\n");
-        terminal_writestring("  memstats - Show memory statistics\n");
-        terminal_writestring("  syscall  - Test system calls\n");
-        terminal_writestring("  version  - Show system version\n");
-        terminal_writestring("  help     - Show this help message\n");
     } else {
         terminal_writestring("Unknown command: ");
         terminal_writestring(command);

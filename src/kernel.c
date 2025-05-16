@@ -8,7 +8,10 @@
 #include "../include/timerDriver.h"
 #include "../include/memory/pmm.h"
 #include "../include/memory/memory_map.h"
+#include "../include/memory/heap.h"
 #include "../include/version.h"
+#include "../include/fs/fat16.h"
+#include "../include/drivers/ata.h"
 #include <stddef.h>
 
 // Multiboot magic number
@@ -41,6 +44,7 @@ void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 	// Initialize memory manager
 	memory_map_init(multiboot_magic, multiboot_info);
 	pmm_init();
+	heap_init();  // Initialize heap after PMM
 
 	// Initialize timer driver
 	if (!timer_driver_init()) {
@@ -49,10 +53,17 @@ void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 		return;
 	}
 
-	// Initialize filesystem
-	if (fat16_init() != 0) {
+	// Initialize ATA driver
+	if (!ata_init()) {
 		terminal_setcolor(VGA_COLOR_RED);
-		terminal_writestring("Failed to initialize filesystem\n");
+		terminal_writestring("Failed to initialize ATA driver\n");
+		return;
+	}
+
+	// Initialize FAT16 filesystem
+	if (!fat16_init()) {
+		terminal_setcolor(VGA_COLOR_RED);
+		terminal_writestring("Failed to initialize FAT16 filesystem\n");
 		return;
 	}
 

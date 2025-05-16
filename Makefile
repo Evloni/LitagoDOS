@@ -3,9 +3,6 @@ ASM = nasm
 CC = gcc
 LD = ld
 
-# Emulator settings
-QEMU = qemu-system-i386
-QEMU_FLAGS = -machine q35 -m 2G
 
 # Flags
 ASMFLAGS = -f elf32
@@ -58,6 +55,8 @@ PMM_C = $(SRC_DIR)/memory/pmm.c
 PMM_OBJ = $(BUILD_DIR)/pmm.o
 MEMORY_MAP_C = $(SRC_DIR)/memory/memory_map.c
 MEMORY_MAP_OBJ = $(BUILD_DIR)/memory_map.o
+HEAP_C = $(SRC_DIR)/memory/heap.c
+HEAP_OBJ = $(BUILD_DIR)/heap.o
 
 # Library files
 LIBGCC_C = $(SRC_DIR)/libgcc.c
@@ -80,12 +79,20 @@ VERSION_C = $(SRC_DIR)/version.c
 VERSION_OBJ = $(BUILD_DIR)/version.o
 
 # Filesystem files
+FS_DIR = $(SRC_DIR)/fs
 FAT16_C = $(FS_DIR)/fat16.c
 FAT16_OBJ = $(BUILD_DIR)/fat16.o
 
 # ATA driver files
-ATA_C = $(DRIVERS_DIR)/ata.c
+ATA_C = $(SRC_DIR)/drivers/ata.c
 ATA_OBJ = $(BUILD_DIR)/ata.o
+
+# Add FAT16 object to the list of objects
+OBJS = $(BOOT_OBJ) $(KERNEL_OBJ) $(VGA_OBJ) $(IO_OBJ) $(IDT_ASM_OBJ) $(IDT_C_OBJ) \
+       $(GDT_C_OBJ) $(VGA_DRIVER_OBJ) $(KEYBOARD_DRIVER_OBJ) $(TIMER_DRIVER_OBJ) \
+       $(STRING_OBJ) $(SHELL_OBJ) $(PMM_OBJ) $(MEMORY_MAP_OBJ) $(HEAP_OBJ) $(LIBGCC_OBJ) \
+       $(TEST_OBJ) $(SYSCALL_TEST_OBJ) $(SYSCALL_ASM_OBJ) $(SYSCALL_C_OBJ) \
+       $(VERSION_OBJ) $(FAT16_OBJ) $(ATA_OBJ)
 
 # Default target
 .PHONY: all
@@ -96,6 +103,9 @@ $(BUILD_DIR):
 	mkdir -p $@
 	mkdir -p $(ISO_BOOT_DIR)
 	mkdir -p $(ISO_GRUB_DIR)
+
+$(BUILD_DIR)/tests:
+	mkdir -p $@
 
 # Assemble boot code
 $(BOOT_OBJ): $(BOOT_ASM) | $(BUILD_DIR)
@@ -167,6 +177,11 @@ $(MEMORY_MAP_OBJ): $(MEMORY_MAP_C) | $(BUILD_DIR)
 	@echo "Compiling Memory Map..."
 	$(CC) $(CFLAGS) $< -o $@
 
+# Compile heap
+$(HEAP_OBJ): $(HEAP_C) | $(BUILD_DIR)
+	@echo "Compiling heap..."
+	$(CC) $(CFLAGS) $< -o $@
+
 # Compile libgcc
 $(LIBGCC_OBJ): $(LIBGCC_C) | $(BUILD_DIR)
 	@echo "Compiling libgcc..."
@@ -208,7 +223,7 @@ $(ATA_OBJ): $(ATA_C) | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $< -o $@
 
 # Link kernel
-$(KERNEL_BIN): $(BOOT_OBJ) $(KERNEL_OBJ) $(VGA_OBJ) $(IO_OBJ) $(IDT_ASM_OBJ) $(IDT_C_OBJ) $(GDT_C_OBJ) $(VGA_DRIVER_OBJ) $(DRIVER_OBJ) $(KEYBOARD_DRIVER_OBJ) $(TIMER_DRIVER_OBJ) $(STRING_OBJ) $(SHELL_OBJ) $(PMM_OBJ) $(MEMORY_MAP_OBJ) $(LIBGCC_OBJ) $(TEST_OBJ) $(SYSCALL_ASM_OBJ) $(SYSCALL_C_OBJ) $(SYSCALL_TEST_OBJ) $(VERSION_OBJ)
+$(KERNEL_BIN): $(OBJS)
 	@echo "Linking kernel..."
 	$(LD) $(LDFLAGS) $^ -o $@
 
@@ -223,7 +238,7 @@ $(ISO_IMAGE): $(KERNEL_BIN) | $(BUILD_DIR)
 .PHONY: run
 run: $(ISO_IMAGE)
 	@echo "Running in QEMU..."
-	$(QEMU) $(QEMU_FLAGS) -cdrom $<
+	qemu-system-i386 -cdrom $(ISO_IMAGE) -hda fat16.img -boot d
 
 # Clean build files
 .PHONY: clean

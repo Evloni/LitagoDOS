@@ -38,8 +38,8 @@
 - [ ] Design simple file system
   - [ ] Basic directory structure
   - [ ] File operations (create, read, write, delete)
-- [~] Implement FAT16 support (read-only root directory listing implemented)
-  - [~] File system driver (read-only, root directory listing)
+- [] Implement FAT16 support (read-only root directory listing implemented)
+  - [] File system driver (read-only, root directory listing)
   - [ ] File read support (cat)
   - [ ] File write support
 
