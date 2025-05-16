@@ -35,25 +35,27 @@
 - [x] Implement basic system calls
 
 ## Phase 3: File System
-- [ ] Design simple file system
-  - [ ] Basic directory structure
-  - [ ] File operations (create, read, write, delete)
-- [] Implement FAT16 support (read-only root directory listing implemented)
-  - [] File system driver (read-only, root directory listing)
-  - [ ] File read support (cat)
-  - [ ] File write support
+- [x] Design simple file system
+  - [x] Basic directory structure
+  - [x] File operations (create, read, write, delete)
+- [x] Implement FAT16 support (read-only root directory listing implemented)
+  - [x] File system driver (read-only, root directory listing)
+  - [x] File read support (cat)
+  - [x] File write support
 
 ## Phase 4: Shell and Basic Commands
-- [ ] Implement command-line shell
-  - [ ] Command parser
-  - [ ] Command history
-  - [ ] Basic command execution
-- [ ] Create basic commands
-  - [ ] `ls` - List directory contents
-  - [ ] `cd` - Change directory
-  - [ ] `cat` - Display file contents
+- [x] Implement command-line shell
+  - [x] Command parser
+  - [x] Command history
+  - [x] Basic command execution
+- [x] Create basic commands
+  - [x] `ls` - List directory contents
+  - [x] `cd` - Change directory
+  - [x] `cat` - Display file contents
   - [x] `echo` - Print text
   - [x] `help` - Show available commands
+  - [x] `clear` - Clear the terminal
+  - [x] `disktest` - Test disk driver
 - [ ] Implement TSR (Terminate and Stay Resident) support
   - [ ] Basic program loading
   - [ ] Memory management for TSR programs
@@ -72,6 +74,7 @@
 - [x] Implement basic device drivers
   - [x] VGA driver
   - [x] Keyboard driver registration
+  - [x] Disk driver (QEMU-attached FAT16 image)
   - [ ] Serial port driver
   - [ ] Timer driver
 - [ ] Add support for additional devices
