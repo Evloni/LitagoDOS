@@ -28,7 +28,7 @@ typedef struct {
 void editor_init(Editor* editor);
 void editor_free(Editor* editor);
 void editor_draw(Editor* editor);
-void editor_handle_input(Editor* editor);
+bool editor_handle_input(Editor* editor);
 void editor_main_loop(Editor* editor);
 
 // Line operations

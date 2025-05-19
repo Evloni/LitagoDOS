@@ -250,7 +250,7 @@ static void handle_command(const char* command) {
             terminal_writestring("Usage: edit <filename>\n");
             return;
         }
-        editor_edit_command(command);
+        editor_edit_command(filename);
     } else if (strncmp(command, "rm", 2) == 0) {
         const char* filename = command + 2;
         while (*filename == ' ') filename++;  // Skip spaces
@@ -315,15 +315,12 @@ void shell_start(void) {
             }
             else if (key >= 32 && key <= 126 && cmd_index < MAX_CMD_LENGTH - 1) {
                 // Insert character at current position
-                memmove(&cmd_buffer[cmd_index + 1], &cmd_buffer[cmd_index], strlen(&cmd_buffer[cmd_index]) + 1);
                 cmd_buffer[cmd_index] = (char)key;
                 terminal_putchar((char)key);
-                terminal_writestring(&cmd_buffer[cmd_index + 1]);
-                // Move cursor back to correct position
-                for (size_t i = strlen(&cmd_buffer[cmd_index + 1]); i > 0; i--) {
-                    terminal_putchar('\b');
-                }
                 cmd_index++;
+                
+                // Update cursor coordinates after each character
+                terminal_get_cursor(&prompt_x, &prompt_y);
             }
         }
         

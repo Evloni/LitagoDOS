@@ -66,6 +66,11 @@ static char keyboard_buffer_get(void) {
     return c;
 }
 
+// Clear the keyboard buffer
+void keyboard_clear_buffer(void) {
+    keyboard_buffer_head = keyboard_buffer_tail;
+}
+
 // Get a character from keyboard input
 char keyboard_getchar(void) {
     while (1) {

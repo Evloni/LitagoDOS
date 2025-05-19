@@ -68,34 +68,39 @@ void editor_draw(Editor* editor) {
                 terminal_putentryat(line[j], vga_entry_color(editor->text_color, editor->bg_color), j, i);
             }
         }
-        // Move to next line without using newline
-        terminal_set_cursor(0, i);
     }
     
     // Draw status bar with white text on black background
     terminal_setcolor(vga_entry_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK));
     for (int i = 0; i < VGA_WIDTH; i++) {
-        terminal_putchar(' ');
+        terminal_putentryat(' ', vga_entry_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK), i, VGA_HEIGHT - 1);
     }
+    
+    // Show filename and modified status on the left
     terminal_set_cursor(0, VGA_HEIGHT - 1);
-    terminal_writestring("-- EDITOR -- ");
+    terminal_writestring("-- ");
     if (editor->filename) {
         terminal_writestring(editor->filename);
     }
-    terminal_writestring(" -- ");
     if (editor->modified) {
-        terminal_writestring("(modified)");
+        terminal_writestring(" (modified)");
     }
+    terminal_writestring(" -- ");
     
     // Set cursor position relative to scroll offset
     int display_y = editor->cursor_y - editor->scroll_offset;
     if (display_y >= 0 && display_y < EDITOR_EDITABLE_HEIGHT) {
         terminal_set_cursor(editor->cursor_x, display_y);
+        terminal_update_cursor();
+    } else {
+        // If cursor is not visible, place it at the end of the last visible line
+        terminal_set_cursor(0, EDITOR_EDITABLE_HEIGHT - 1);
+        terminal_update_cursor();
     }
 }
 
 // Handle a single character input
-void editor_handle_input(Editor* editor) {
+bool editor_handle_input(Editor* editor) {
     char c = keyboard_getchar();
     
     // Check if this is a Ctrl+S combination
@@ -121,7 +126,20 @@ void editor_handle_input(Editor* editor) {
             // Wait a moment to show the message
             for (volatile int i = 0; i < 1000000; i++);
         }
-        return;  // Skip the rest of the input handling
+        return true;  // Continue editor loop
+    }
+    
+    // Check if this is a Ctrl+Q combination to exit
+    if (c == 'q' && modifier_state.ctrl) {
+        // If file is modified, show warning
+        if (editor->modified) {
+            terminal_set_cursor(0, VGA_HEIGHT - 1);
+            terminal_writestring("Warning: File has unsaved changes. Press Ctrl+Q again to exit anyway.");
+            // Wait a moment to show the message
+            for (volatile int i = 0; i < 1000000; i++);
+            return true;  // Continue editor loop
+        }
+        return false;  // Exit editor loop
     }
     
     switch (c) {
@@ -143,13 +161,20 @@ void editor_handle_input(Editor* editor) {
             }
             break;
     }
+    return true;  // Continue editor loop
 }
 
 // Main editor loop
 void editor_main_loop(Editor* editor) {
-    while (true) {
+    // Draw initial state
+    editor_draw(editor);
+    
+    // Main loop
+    while (1) {
+        if (!editor_handle_input(editor)) {
+            break;
+        }
         editor_draw(editor);
-        editor_handle_input(editor);
     }
 }
 
@@ -303,17 +328,17 @@ void editor_insert_char(Editor* editor, char c) {
                 terminal_putentryat(line[i], color, i, display_y);
             }
 
-            // Clear the rest of the line visually (optional)
+            // Clear the rest of the line visually
             for (int i = strlen(line); i < VGA_WIDTH; i++) {
                 terminal_putentryat(' ', color, i, display_y);
             }
 
             // Update hardware cursor position using screen-relative coordinates
             terminal_set_cursor(editor->cursor_x, display_y);
+            terminal_update_cursor();
         }
     }
 }
-
 
 void editor_delete_char(Editor* editor) {
     if (editor->cursor_x > 0) {
@@ -322,6 +347,28 @@ void editor_delete_char(Editor* editor) {
         memmove(&line[editor->cursor_x - 1], &line[editor->cursor_x], len - editor->cursor_x + 1);
         editor->cursor_x--;
         editor->modified = true;
+
+        // Compute visible screen row
+        int display_y = editor->cursor_y - editor->scroll_offset;
+
+        // Draw only if the line is on screen
+        if (display_y >= 0 && display_y < EDITOR_EDITABLE_HEIGHT) {
+            uint8_t color = vga_entry_color(editor->text_color, editor->bg_color);
+
+            // Redraw the entire line from the modified position
+            for (int i = editor->cursor_x; line[i] != '\0'; i++) {
+                terminal_putentryat(line[i], color, i, display_y);
+            }
+
+            // Clear the rest of the line visually
+            for (int i = strlen(line); i < VGA_WIDTH; i++) {
+                terminal_putentryat(' ', color, i, display_y);
+            }
+
+            // Update hardware cursor position using screen-relative coordinates
+            terminal_set_cursor(editor->cursor_x, display_y);
+            terminal_update_cursor();
+        }
     }
 }
 
@@ -360,41 +407,30 @@ bool editor_create_file(const char* filename) {
     }
 }
 
-void editor_edit_command(const char* command) {
-    if (strncmp(command, "edit", 4) == 0) {
-        const char* filename = command + 4;
-        while (*filename == ' ') filename++;  // Skip spaces
-        
-        if (*filename == '\0') {
-            terminal_writestring("Usage: edit <filename>\n");
+void editor_edit_command(const char* filename) {
+    // Create and initialize editor
+    Editor editor;
+    editor_init(&editor);
+    
+    // Try to load the file if it exists
+    if (!editor_load_file(&editor, filename)) {
+        // If file doesn't exist, create a new one
+        if (!fat16_create_file(filename)) {
+            terminal_writestring("Failed to create file\n");
+            editor_free(&editor);
             return;
         }
-
-        // Create and initialize editor
-        Editor editor;
-        editor_init(&editor);
-        
-        // Try to load the file if it exists
-        if (!editor_load_file(&editor, filename)) {
-            // If file doesn't exist, create a new one
-            if (!fat16_create_file(filename)) {
-                terminal_writestring("Failed to create file\n");
-                editor_free(&editor);
-                return;
-            }
-            editor.filename = strdup(filename);
-            editor.modified = true;
-        }
-        
-        // Start the editor
-        editor_main_loop(&editor);
-        
-        // Clean up when editor exits
-        editor_free(&editor);
-        
-        // Redraw shell interface
-        terminal_clear();
-        draw_header();
-        draw_prompt();
+        editor.filename = strdup(filename);
+        editor.modified = true;
     }
+    
+    // Start the editor
+    editor_main_loop(&editor);
+    
+    // Clean up when editor exits
+    editor_free(&editor);
+    
+    // Clear the screen
+    terminal_clear();
+    draw_header();
 }
