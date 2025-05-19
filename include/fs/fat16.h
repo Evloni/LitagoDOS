@@ -57,6 +57,7 @@ bool fat16_write_file(const char* filename, const void* buffer, uint32_t size);
 bool fat16_create_file(const char* filename);
 bool fat16_delete_file(const char* filename);
 bool fat16_list_directory(const char* path);
+bool fat16_remove_file(const char* filename);
 
 // Helper functions
 uint16_t fat16_get_next_cluster(uint16_t cluster);

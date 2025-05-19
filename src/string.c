@@ -124,6 +124,16 @@ size_t strlen(const char* str) {
     return s - str;
 }
 
+// Copy string
+char* strcpy(char* dest, const char* src) {
+    char* d = dest;
+    while (*src) {
+        *d++ = *src++;
+    }
+    *d = '\0';
+    return dest;
+}
+
 // Copy string with length limit
 char* strncpy(char* dest, const char* src, size_t count) {
     char* d = dest;
@@ -178,4 +188,14 @@ void* memmove(void* dest, const void* src, size_t n) {
         }
     }
     return dest;
+}
+
+// Duplicate a string
+char* strdup(const char* s) {
+    size_t len = strlen(s) + 1;
+    char* new = (char*)kmalloc(len);
+    if (new) {
+        memcpy(new, s, len);
+    }
+    return new;
 }

@@ -23,11 +23,7 @@ static size_t keyboard_buffer_head = 0;
 static size_t keyboard_buffer_tail = 0;
 
 // Simple modifier state
-static struct {
-    bool shift;
-    bool ctrl;
-    bool alt;
-} modifier_state = {0};
+struct modifier_state modifier_state = {0};
 
 // Standard PC keyboard scancode set 1 mapping (unshifted)
 static const char scancode_to_ascii[] = {
@@ -139,4 +135,14 @@ void keyboard_handler(struct regs *r) {
 
 char get_scancode(void) {
     return inb(0x60);
+}
+
+int keyboard_getkey(void) {
+    while (1) {
+        uint8_t scancode = inb(0x60);
+        if (scancode < 0x80) {  // Key press
+            return scancode;
+        }
+        __asm__("hlt");
+    }
 }

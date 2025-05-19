@@ -19,6 +19,16 @@ char get_scancode(void);
 char keyboard_getchar(void);
 int keyboard_getkey(void);
 
+// Modifier state structure
+struct modifier_state {
+    bool shift;
+    bool ctrl;
+    bool alt;
+};
+
+// Declare the external variable
+extern struct modifier_state modifier_state;
+
 // Special key code definitions
 #define KEY_ESCAPE       0x1B
 #define KEY_BACKSPACE    0x08

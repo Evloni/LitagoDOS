@@ -12,4 +12,10 @@ void* malloc(size_t size);
 // Free previously allocated memory
 void free(void* ptr);
 
+// Allocate memory from the kernel heap
+void* kmalloc(size_t size);
+
+// Free memory allocated from the kernel heap
+void kfree(void* ptr);
+
 #endif // HEAP_H 

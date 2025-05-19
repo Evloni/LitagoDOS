@@ -57,6 +57,8 @@ MEMORY_MAP_C = $(SRC_DIR)/memory/memory_map.c
 MEMORY_MAP_OBJ = $(BUILD_DIR)/memory_map.o
 HEAP_C = $(SRC_DIR)/memory/heap.c
 HEAP_OBJ = $(BUILD_DIR)/heap.o
+STDLIB_C = $(SRC_DIR)/memory/stdlib.c
+STDLIB_OBJ = $(BUILD_DIR)/stdlib.o
 PROGRAM_C = $(SRC_DIR)/memory/program.c
 PROGRAM_OBJ = $(BUILD_DIR)/program.o
 
@@ -93,12 +95,16 @@ FAT16_OBJ = $(BUILD_DIR)/fat16.o
 ATA_C = $(SRC_DIR)/drivers/ata.c
 ATA_OBJ = $(BUILD_DIR)/ata.o
 
+# Editor files
+EDITOR_C = $(SRC_DIR)/editor.c
+EDITOR_OBJ = $(BUILD_DIR)/editor.o
+
 # Add FAT16 object to the list of objects
 OBJS = $(BOOT_OBJ) $(KERNEL_OBJ) $(VGA_OBJ) $(IO_OBJ) $(IDT_ASM_OBJ) $(IDT_C_OBJ) \
        $(GDT_C_OBJ) $(VGA_DRIVER_OBJ) $(KEYBOARD_DRIVER_OBJ) $(TIMER_DRIVER_OBJ) \
-       $(STRING_OBJ) $(SHELL_OBJ) $(PMM_OBJ) $(MEMORY_MAP_OBJ) $(HEAP_OBJ) $(LIBGCC_OBJ) \
+       $(STRING_OBJ) $(SHELL_OBJ) $(PMM_OBJ) $(MEMORY_MAP_OBJ) $(HEAP_OBJ) $(STDLIB_OBJ) $(LIBGCC_OBJ) \
        $(TEST_OBJ) $(TEST2_OBJ) $(SYSCALL_TEST_OBJ) $(SYSCALL_ASM_OBJ) $(SYSCALL_C_OBJ) \
-       $(VERSION_OBJ) $(FAT16_OBJ) $(ATA_OBJ) $(PROGRAM_OBJ)
+       $(VERSION_OBJ) $(FAT16_OBJ) $(ATA_OBJ) $(PROGRAM_OBJ) $(EDITOR_OBJ)
 
 # Default target
 .PHONY: all
@@ -188,6 +194,11 @@ $(HEAP_OBJ): $(HEAP_C) | $(BUILD_DIR)
 	@echo "Compiling heap..."
 	$(CC) $(CFLAGS) $< -o $@
 
+# Compile stdlib
+$(STDLIB_OBJ): $(STDLIB_C) | $(BUILD_DIR)
+	@echo "Compiling stdlib..."
+	$(CC) $(CFLAGS) $< -o $@
+
 # Compile libgcc
 $(LIBGCC_OBJ): $(LIBGCC_C) | $(BUILD_DIR)
 	@echo "Compiling libgcc..."
@@ -236,6 +247,11 @@ $(PROGRAM_OBJ): $(PROGRAM_C) | $(BUILD_DIR)
 # Compile test2 (src/test.c)
 $(TEST2_OBJ): $(TEST2_C) | $(BUILD_DIR)
 	@echo "Compiling test2 (memory management test)..."
+	$(CC) $(CFLAGS) $< -o $@
+
+# Compile editor
+$(EDITOR_OBJ): $(EDITOR_C) | $(BUILD_DIR)
+	@echo "Compiling editor..."
 	$(CC) $(CFLAGS) $< -o $@
 
 # Link kernel

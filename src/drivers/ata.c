@@ -136,6 +136,45 @@ bool ata_write_sectors(uint32_t lba, uint8_t sectors, const void* buffer) {
             outw(ATA_DATA, data[j]);
         }
         data += 256;
+
+        // Check for errors after each sector
+        uint8_t status = inb(ATA_STATUS);
+        if (status & ATA_SR_ERR) {
+            return false;
+        }
+    }
+
+    // Wait for the write to complete with timeout
+    uint32_t timeout = 1000000;  // Adjust timeout value as needed
+    while (timeout--) {
+        uint8_t status = inb(ATA_STATUS);
+        if (!(status & ATA_SR_BSY)) {
+            break;
+        }
+        if (status & ATA_SR_ERR) {
+            return false;
+        }
+    }
+    if (timeout == 0) {
+        return false;  // Timeout occurred
+    }
+
+    // Flush the write cache
+    outb(ATA_COMMAND, 0xE7);  // FLUSH CACHE command
+    
+    // Wait for flush to complete with timeout
+    timeout = 1000000;  // Adjust timeout value as needed
+    while (timeout--) {
+        uint8_t status = inb(ATA_STATUS);
+        if (!(status & ATA_SR_BSY)) {
+            break;
+        }
+        if (status & ATA_SR_ERR) {
+            return false;
+        }
+    }
+    if (timeout == 0) {
+        return false;  // Timeout occurred
     }
 
     return true;

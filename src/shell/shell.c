@@ -10,6 +10,7 @@
 #include "../../include/fs/fat16.h"
 #include "../../include/test.h"
 #include "../../include/string.h"
+#include "../../include/editor.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -160,7 +161,9 @@ static void handle_command(const char* command) {
         terminal_writestring("  version        - Show OS version info\n");
         terminal_writestring("  progtest       - Run program loading test\n");
         terminal_writestring("  mkfile <file>  - Create a new empty file\n");
+        terminal_writestring("  rm <file>      - Remove a file\n");
         terminal_writestring("  clear          - Clear the screen\n");
+        terminal_writestring("  edit <file>    - Edit a file\n");
     } else if (strncmp(command, "shutdown", 8) == 0) {
         terminal_writestring("Shutting down...\n");
         shutdown();
@@ -235,13 +238,35 @@ static void handle_command(const char* command) {
         } else {
             terminal_writestring("Failed to create file\n");
         }
+    
     } else if (strcmp(command, "clear") == 0) {
         terminal_clear();
         draw_header();  // Redraw the header after clearing
-    } else {
-        terminal_writestring("Unknown command: ");
-        terminal_writestring(command);
-        terminal_writestring("\n");
+    } else if (strncmp(command, "edit", 4) == 0) {
+        const char* filename = command + 4;
+        while (*filename == ' ') filename++;  // Skip spaces
+        
+        if (*filename == '\0') {
+            terminal_writestring("Usage: edit <filename>\n");
+            return;
+        }
+        editor_edit_command(command);
+    } else if (strncmp(command, "rm", 2) == 0) {
+        const char* filename = command + 2;
+        while (*filename == ' ') filename++;  // Skip spaces
+        
+        if (*filename == '\0') {
+            terminal_writestring("Usage: rm <filename>\n");
+            return;
+        }
+
+        if (fat16_remove_file(filename)) {
+            terminal_writestring("File removed successfully\n");
+        } else {
+            terminal_writestring("Failed to remove file\n");
+        }
+    } else if (command[0] != '\0') {
+        terminal_writestring("Unknown command. Type 'help' for available commands.\n");
     }
 }
 
