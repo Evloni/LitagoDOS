@@ -18,4 +18,7 @@ char* strchr(const char* str, int c);
 // Set memory to a specific value
 void* memset(void* dest, int val, size_t count);
 
+// Move memory from one location to another
+void* memmove(void* dest, const void* src, size_t n);
+
 #endif // STRING_H 

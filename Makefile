@@ -57,6 +57,8 @@ MEMORY_MAP_C = $(SRC_DIR)/memory/memory_map.c
 MEMORY_MAP_OBJ = $(BUILD_DIR)/memory_map.o
 HEAP_C = $(SRC_DIR)/memory/heap.c
 HEAP_OBJ = $(BUILD_DIR)/heap.o
+PROGRAM_C = $(SRC_DIR)/memory/program.c
+PROGRAM_OBJ = $(BUILD_DIR)/program.o
 
 # Library files
 LIBGCC_C = $(SRC_DIR)/libgcc.c
@@ -67,6 +69,10 @@ TEST_C = $(SRC_DIR)/tests/memtest.c
 TEST_OBJ = $(BUILD_DIR)/tests/memtest.o
 SYSCALL_TEST_C = $(SRC_DIR)/tests/syscall_test.c
 SYSCALL_TEST_OBJ = $(BUILD_DIR)/tests/syscall_test.o
+
+# Add test.c for shell memtest2
+TEST2_C = $(SRC_DIR)/test.c
+TEST2_OBJ = $(BUILD_DIR)/test2.o
 
 # Add after your other file definitions
 SYSCALL_ASM = $(SRC_DIR)/interrupts/syscall.asm
@@ -91,8 +97,8 @@ ATA_OBJ = $(BUILD_DIR)/ata.o
 OBJS = $(BOOT_OBJ) $(KERNEL_OBJ) $(VGA_OBJ) $(IO_OBJ) $(IDT_ASM_OBJ) $(IDT_C_OBJ) \
        $(GDT_C_OBJ) $(VGA_DRIVER_OBJ) $(KEYBOARD_DRIVER_OBJ) $(TIMER_DRIVER_OBJ) \
        $(STRING_OBJ) $(SHELL_OBJ) $(PMM_OBJ) $(MEMORY_MAP_OBJ) $(HEAP_OBJ) $(LIBGCC_OBJ) \
-       $(TEST_OBJ) $(SYSCALL_TEST_OBJ) $(SYSCALL_ASM_OBJ) $(SYSCALL_C_OBJ) \
-       $(VERSION_OBJ) $(FAT16_OBJ) $(ATA_OBJ)
+       $(TEST_OBJ) $(TEST2_OBJ) $(SYSCALL_TEST_OBJ) $(SYSCALL_ASM_OBJ) $(SYSCALL_C_OBJ) \
+       $(VERSION_OBJ) $(FAT16_OBJ) $(ATA_OBJ) $(PROGRAM_OBJ)
 
 # Default target
 .PHONY: all
@@ -220,6 +226,16 @@ $(FAT16_OBJ): $(FAT16_C) | $(BUILD_DIR)
 # Compile ATA driver
 $(ATA_OBJ): $(ATA_C) | $(BUILD_DIR)
 	@echo "Compiling ATA driver..."
+	$(CC) $(CFLAGS) $< -o $@
+
+# Compile program
+$(PROGRAM_OBJ): $(PROGRAM_C) | $(BUILD_DIR)
+	@echo "Compiling program..."
+	$(CC) $(CFLAGS) $< -o $@
+
+# Compile test2 (src/test.c)
+$(TEST2_OBJ): $(TEST2_C) | $(BUILD_DIR)
+	@echo "Compiling test2 (memory management test)..."
 	$(CC) $(CFLAGS) $< -o $@
 
 # Link kernel

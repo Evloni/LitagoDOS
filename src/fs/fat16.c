@@ -307,4 +307,121 @@ bool fat16_create_file(const char* filename) {
     bool ok = ata_write_sectors(root_dir_start_sector, root_dir_sectors, root_dir);
     free(root_dir);
     return ok;
+}
+
+// Write file contents
+bool fat16_write_file(const char* filename, const void* buffer, uint32_t size) {
+    // Only support root directory
+    fat16_dir_entry_t* root_dir = (fat16_dir_entry_t*)malloc(root_dir_sectors * boot_sector.bytes_per_sector);
+    if (!root_dir) return false;
+    if (!ata_read_sectors(root_dir_start_sector, root_dir_sectors, root_dir)) {
+        free(root_dir);
+        return false;
+    }
+
+    // Find or create file entry
+    fat16_dir_entry_t* file_entry = NULL;
+    for (int i = 0; i < boot_sector.root_entries; i++) {
+        if (root_dir[i].filename[0] == 0x00) break;
+        if (root_dir[i].filename[0] == 0xE5) continue;
+        char entry_name[13];
+        int name_idx = 0;
+        for (int j = 0; j < 8; j++) if (root_dir[i].filename[j] != ' ') entry_name[name_idx++] = root_dir[i].filename[j];
+        if (root_dir[i].extension[0] != ' ') {
+            entry_name[name_idx++] = '.';
+            for (int j = 0; j < 3; j++) if (root_dir[i].extension[j] != ' ') entry_name[name_idx++] = root_dir[i].extension[j];
+        }
+        entry_name[name_idx] = '\0';
+        if (strcmp(entry_name, filename) == 0) {
+            file_entry = &root_dir[i];
+            break;
+        }
+    }
+    if (!file_entry) {
+        // Find a free entry
+        int free_idx = -1;
+        for (int i = 0; i < boot_sector.root_entries; i++) {
+            if (root_dir[i].filename[0] == 0x00 || root_dir[i].filename[0] == 0xE5) {
+                free_idx = i;
+                break;
+            }
+        }
+        if (free_idx == -1) {
+            free(root_dir);
+            return false; // No free entry
+        }
+        // Parse filename and extension (8.3 format)
+        char name[8] = {' '}, ext[3] = {' '};
+        const char* dot = strchr(filename, '.');
+        int name_len = dot ? (dot - filename) : strlen(filename);
+        if (name_len > 8) name_len = 8;
+        for (int i = 0; i < name_len; i++) name[i] = filename[i];
+        if (dot) {
+            int ext_len = strlen(dot + 1);
+            if (ext_len > 3) ext_len = 3;
+            for (int i = 0; i < ext_len; i++) ext[i] = dot[1 + i];
+        }
+        memcpy(root_dir[free_idx].filename, name, 8);
+        memcpy(root_dir[free_idx].extension, ext, 3);
+        root_dir[free_idx].attributes = 0;
+        memset(root_dir[free_idx].reserved, 0, 10);
+        root_dir[free_idx].time = 0;
+        root_dir[free_idx].date = 0;
+        root_dir[free_idx].starting_cluster = 0;
+        root_dir[free_idx].file_size = 0;
+        file_entry = &root_dir[free_idx];
+    }
+
+    // Free old clusters if file existed (not implemented: TODO)
+    // For now, we just overwrite the file and allocate new clusters
+
+    // Calculate how many clusters are needed
+    uint32_t bytes_per_cluster = boot_sector.sectors_per_cluster * boot_sector.bytes_per_sector;
+    uint32_t clusters_needed = (size + bytes_per_cluster - 1) / bytes_per_cluster;
+    if (clusters_needed == 0) clusters_needed = 1;
+
+    // Allocate clusters
+    uint16_t first_cluster = 0;
+    uint16_t prev_cluster = 0;
+    uint32_t bytes_written = 0;
+    for (uint32_t c = 0; c < clusters_needed; c++) {
+        // Find a free cluster
+        uint16_t free_cluster = 2;
+        while (free_cluster < 0xFFF8 && fat_table[free_cluster] != 0x0000) free_cluster++;
+        if (free_cluster >= 0xFFF8) {
+            free(root_dir);
+            return false; // No free cluster
+        }
+        // Mark as end of chain for now
+        fat_table[free_cluster] = 0xFFF8;
+        if (prev_cluster != 0) fat_table[prev_cluster] = free_cluster;
+        if (first_cluster == 0) first_cluster = free_cluster;
+        prev_cluster = free_cluster;
+
+        // Write data to cluster
+        uint32_t lba = fat16_cluster_to_lba(free_cluster);
+        uint32_t to_write = (size - bytes_written > bytes_per_cluster) ? bytes_per_cluster : (size - bytes_written);
+        if (!ata_write_sectors(lba, boot_sector.sectors_per_cluster, (uint8_t*)buffer + bytes_written)) {
+            free(root_dir);
+            return false;
+        }
+        bytes_written += to_write;
+    }
+
+    // Update directory entry
+    file_entry->starting_cluster = first_cluster;
+    file_entry->file_size = size;
+
+    // Write back FAT table
+    if (!ata_write_sectors(fat_start_sector, sectors_per_fat, fat_table)) {
+        free(root_dir);
+        return false;
+    }
+    // Write back root directory
+    if (!ata_write_sectors(root_dir_start_sector, root_dir_sectors, root_dir)) {
+        free(root_dir);
+        return false;
+    }
+    free(root_dir);
+    return true;
 } 

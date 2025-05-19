@@ -1,12 +1,16 @@
-#include "../include/shell.h"
-#include "../include/vga.h"
-#include "../include/string.h"
-#include "../include/tests/memtest.h"
-#include "../include/memory/memory_map.h"
-#include "../include/memory/pmm.h"
-#include "../include/tests/syscall_test.h"
-#include "../include/version.h"
-#include "../include/fs/fat16.h"
+#include "../../include/shell.h"
+#include "../../include/vga.h"
+#include "../../include/keyboardDriver.h"
+#include "../../include/string.h"
+#include "../../include/tests/memtest.h"
+#include "../../include/memory/memory_map.h"
+#include "../../include/memory/pmm.h"
+#include "../../include/tests/syscall_test.h"
+#include "../../include/version.h"
+#include "../../include/fs/fat16.h"
+#include "../../include/test.h"
+#include "../../include/string.h"
+#include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -19,6 +23,16 @@
 // Track the prompt position
 size_t prompt_x = 0;
 size_t prompt_y = 0;
+
+#define MAX_CMD_LENGTH 256
+#define MAX_HISTORY 10
+
+static char cmd_buffer[MAX_CMD_LENGTH];
+static char cmd_history[MAX_HISTORY][MAX_CMD_LENGTH];
+static int history_count = 0;
+static int history_index = -1;  // Start at -1 to indicate no history position
+static int cmd_index = 0;
+
 
 void draw_header() {
     terminal_setcolor(HEADER_COLOR);
@@ -131,7 +145,49 @@ static void version() {
 
 // Function to handle shell commands
 static void handle_command(const char* command) {
-    if (strncmp(command, "ls", 2) == 0) {
+    if (strncmp(command, "help", 4) == 0) {
+        terminal_writestring("Available commands:\n");
+        terminal_writestring("  ls [path]      - List directory contents\n");
+        terminal_writestring("  cat <file>     - Display file contents\n");
+        terminal_writestring("  echo <text>    - Display text\n");
+        terminal_writestring("  help           - Show this help message\n");
+        terminal_writestring("  shutdown       - Power off the machine\n");
+        terminal_writestring("  reboot         - Reboot the machine\n");
+        terminal_writestring("  memtest        - Run basic memory test\n");
+        terminal_writestring("  memtest2       - Run advanced memory management test\n");
+        terminal_writestring("  memstats       - Show memory statistics\n");
+        terminal_writestring("  syscall        - Run syscall test\n");
+        terminal_writestring("  version        - Show OS version info\n");
+        terminal_writestring("  progtest       - Run program loading test\n");
+        terminal_writestring("  mkfile <file>  - Create a new empty file\n");
+        terminal_writestring("  clear          - Clear the screen\n");
+    } else if (strncmp(command, "shutdown", 8) == 0) {
+        terminal_writestring("Shutting down...\n");
+        shutdown();
+    } else if (strncmp(command, "reboot", 6) == 0) {
+        terminal_writestring("Rebooting...\n");
+        reboot();
+    } else if (strncmp(command, "echo", 4) == 0) {
+        const char* args = command + 4;
+        if (args != NULL) {
+            terminal_writestring(args);
+            terminal_writestring("\n");
+        } else {
+            terminal_writestring("\n");
+        }
+    } else if (strcmp(command, "memtest2") == 0) {
+        test_memory_management();
+    } else if (strcmp(command, "memtest") == 0) {
+        memtest_run();
+    } else if (strncmp(command, "memstats", 8) == 0) {
+        memstats();
+    } else if (strncmp(command, "syscall", 7) == 0) {
+        test_syscalls();
+    } else if (strncmp(command, "version", 7) == 0) {
+        version();
+    } else if (strcmp(command, "progtest") == 0) {
+        test_program_loading();
+    } else if (strncmp(command, "ls", 2) == 0) {
         const char* path = command + 2;
         while (*path == ' ') path++;  // Skip spaces
         
@@ -165,52 +221,23 @@ static void handle_command(const char* command) {
         }
 
         free(buffer);
-    } else if (strncmp(command, "help", 4) == 0) {
-        terminal_writestring("Available commands:\n");
-        terminal_writestring("  ls [path]      - List directory contents\n");
-        terminal_writestring("  cat <file>     - Display file contents\n");
-        terminal_writestring("  echo <text>    - Display text\n");
-        terminal_writestring("  help           - Show this help message\n");
-        terminal_writestring("  shutdown       - Power off the machine\n");
-        terminal_writestring("  reboot         - Reboot the machine\n");
-        terminal_writestring("  memtest        - Run memory test\n");
-        terminal_writestring("  memstats       - Show memory statistics\n");
-        terminal_writestring("  syscall        - Run syscall test\n");
-        terminal_writestring("  version        - Show OS version info\n");
-    } else if (strncmp(command, "shutdown", 8) == 0) {
-        terminal_writestring("Shutting down...\n");
-        shutdown();
-    } else if (strncmp(command, "reboot", 6) == 0) {
-        terminal_writestring("Rebooting...\n");
-        reboot();
-    } else if (strncmp(command, "echo", 4) == 0) {
-        const char* args = command + 4;
-        if (args != NULL) {
-            terminal_writestring(args);
-            terminal_writestring("\n");
-        } else {
-            terminal_writestring("\n");
-        }
-    } else if (strncmp(command, "memtest", 7) == 0) {
-        memtest_run();
-    } else if (strncmp(command, "memstats", 8) == 0) {
-        memstats();
-    } else if (strncmp(command, "syscall", 7) == 0) {
-        test_syscalls();
-    } else if (strncmp(command, "version", 7) == 0) {
-        version();
     } else if (strncmp(command, "mkfile", 6) == 0) {
         const char* filename = command + 6;
-        while (*filename == ' ') filename++;
+        while (*filename == ' ') filename++;  // Skip spaces
+        
         if (*filename == '\0') {
             terminal_writestring("Usage: mkfile <filename>\n");
             return;
         }
+
         if (fat16_create_file(filename)) {
             terminal_writestring("File created successfully\n");
         } else {
-            terminal_writestring("Failed to create file (already exists, no space, or error)\n");
+            terminal_writestring("Failed to create file\n");
         }
+    } else if (strcmp(command, "clear") == 0) {
+        terminal_clear();
+        draw_header();  // Redraw the header after clearing
     } else {
         terminal_writestring("Unknown command: ");
         terminal_writestring(command);
@@ -218,39 +245,80 @@ static void handle_command(const char* command) {
     }
 }
 
-void shell_init() {
-    terminal_clear();
+// Initialize shell
+void shell_init(void) {
+    memset(cmd_buffer, 0, MAX_CMD_LENGTH);
+    memset(cmd_history, 0, sizeof(cmd_history));
+    history_count = 0;
+    history_index = -1;  // Start at -1 to indicate no history position
+    cmd_index = 0;
+    
     draw_header();
-    draw_prompt();
 }
 
-void shell_run() {
-    char command[256];
-    int command_index = 0;
-
+// Start shell
+void shell_start(void) {
+    terminal_clear();
+    shell_init();
+    
     while (1) {
-        char c = terminal_getchar();
+        // Display prompt
+        draw_prompt();
         
-        if (c == '\n') {
-            command[command_index] = '\0';
-            terminal_putchar('\n');
-            
-            if (command_index > 0) {
-                handle_command(command);
+        // Reset command buffer
+        memset(cmd_buffer, 0, MAX_CMD_LENGTH);
+        cmd_index = 0;
+        history_index = -1;  // Reset history index for new command
+        
+        // Read command
+        while (1) {
+            int key = keyboard_getchar();
+
+            // Handle special keys
+            if (key == '\b') {  // Backspace
+                if (cmd_index > 0) {
+                    cmd_index--;
+                    cmd_buffer[cmd_index] = '\0';
+                    terminal_putchar('\b');
+                    terminal_putchar(' ');
+                    terminal_putchar('\b');
+                }
             }
-            
-            draw_prompt();
-            command_index = 0;
-        } else if (c == '\b') {
-            if (command_index > 0) {
-                command_index--;
-                terminal_putchar('\b');
-                terminal_putchar(' ');
-                terminal_putchar('\b');
+            else if (key == '\n') {  // Enter
+                terminal_putchar('\n');
+                break;
             }
-        } else if (c != 0 && command_index < 255) {
-            command[command_index++] = c;
-            terminal_putchar(c);
+            else if (key >= 32 && key <= 126 && cmd_index < MAX_CMD_LENGTH - 1) {
+                // Insert character at current position
+                memmove(&cmd_buffer[cmd_index + 1], &cmd_buffer[cmd_index], strlen(&cmd_buffer[cmd_index]) + 1);
+                cmd_buffer[cmd_index] = (char)key;
+                terminal_putchar((char)key);
+                terminal_writestring(&cmd_buffer[cmd_index + 1]);
+                // Move cursor back to correct position
+                for (size_t i = strlen(&cmd_buffer[cmd_index + 1]); i > 0; i--) {
+                    terminal_putchar('\b');
+                }
+                cmd_index++;
+            }
         }
+        
+        // Add command to history if it's not empty
+        if (cmd_index > 0) {
+            // Shift history down if we're at max capacity
+            if (history_count == MAX_HISTORY) {
+                for (int i = 0; i < MAX_HISTORY - 1; i++) {
+                    strncpy(cmd_history[i], cmd_history[i + 1], MAX_CMD_LENGTH);
+                }
+                history_count--;
+            }
+            
+            // Add new command to history
+            strncpy(cmd_history[history_count], cmd_buffer, MAX_CMD_LENGTH);
+            history_count++;
+        }
+        
+        // Execute command
+        handle_command(cmd_buffer);
     }
 }
+

@@ -56,22 +56,25 @@
   - [x] `help` - Show available commands
   - [x] `clear` - Clear the terminal
   - [x] `disktest` - Test disk driver
+  - [x] `memtest` - Basic memory test
+  - [x] `memtest2` - Advanced memory management test (PMM + heap)
 
 ## Phase 5: Memory Management
 - [x] Implement basic memory management
   - [x] Memory allocation/deallocation
   - [x] Memory map handling
   - [x] Memory testing
-  - [ ] Memory protection
-  - [ ] Program loading and unloading
-  
+  - [x] Memory protection (removed for DOS-like mode)
+  - [x] Program loading and unloading
+  - [x] Advanced memory management test (shell command `memtest2`)
+
 ## Phase 6: Device Drivers
 - [x] Implement basic device drivers
   - [x] VGA driver
   - [x] Keyboard driver registration
   - [x] Disk driver (QEMU-attached FAT16 image)
   - [ ] Serial port driver
-  - [ ] Timer driver
+  - [x] Timer driver
 - [ ] Add support for additional devices
   - [ ] Floppy disk driver
   - [ ] Hard disk driver
@@ -105,17 +108,19 @@
 
 ## Current Progress
 - Bootloader, kernel, VGA, keyboard, and memory management are implemented and stable
-- Shell is functional with command parsing and basic commands (`ls`, `echo`, `help`, `clear`, `disktest`)
+- Shell is functional with command parsing and basic commands (`ls`, `echo`, `help`, `clear`, `disktest`, `memtest`, `memtest2`)
 - FAT16 read-only root directory listing works via `ls` command
 - Disk driver works for reading sectors from a QEMU-attached FAT16 image
 - Modular codebase with clear separation of drivers, shell, and file system
+- Memory protection and paging removed for DOS-like authenticity
+- Advanced memory management test available via `memtest2` shell command
 
 ## Next Steps
 1. Complete keyboard driver implementation and input handling
-2. Implement basic memory management
-3. Create simple command parser
-4. Add basic file system support
-5. Implement timer driver for system timing
+2. Implement serial port driver
+3. Add floppy and hard disk drivers
+4. Add cursor movement and tab completion to shell
+5. Add basic text editor
 
 ## Development Guidelines
 1. Start with the simplest working version and iterate

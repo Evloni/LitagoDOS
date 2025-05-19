@@ -154,35 +154,7 @@ void terminal_clear(void) {
 
 // Get a single character from keyboard input
 char terminal_getchar(void) {
-    char c;
-    while (1) {
-        // Wait for a key press
-        while (!(inb(0x64) & 1));
-        
-        // Read the scancode
-        uint8_t scancode = inb(0x60);
-        
-        // Check if it's a key press (scancode < 0x80)
-        if (scancode < 0x80) {
-            // Convert scancode to ASCII (simplified version)
-            switch (scancode) {
-                case 0x1C: return '\n';  // Enter
-                case 0x0E: return '\b';  // Backspace
-                default:
-                    if (scancode >= 0x02 && scancode <= 0x0D) {
-                        return "1234567890-="[scancode - 0x02];
-                    } else if (scancode >= 0x10 && scancode <= 0x1B) {
-                        return shift_pressed ? "QWERTYUIOP[]"[scancode - 0x10] : "qwertyuiop[]"[scancode - 0x10];
-                    } else if (scancode >= 0x1E && scancode <= 0x28) {
-                        return shift_pressed ? "ASDFGHJKL;'"[scancode - 0x1E] : "asdfghjkl;'"[scancode - 0x1E];
-                    } else if (scancode >= 0x2C && scancode <= 0x35) {
-                        return shift_pressed ? "ZXCVBNM,./"[scancode - 0x2C] : "zxcvbnm,./"[scancode - 0x2C];
-                    } else if (scancode == 0x39) {
-                        return ' ';  // Space
-                    }
-            }
-        }
-    }
+    return keyboard_getchar();
 }
 
 // Get a string from keyboard input

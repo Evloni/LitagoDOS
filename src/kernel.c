@@ -67,19 +67,19 @@ void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 		return;
 	}
 
+	// Initialize keyboard
+	if (!keyboard_init()) {
+		terminal_setcolor(VGA_COLOR_RED);
+		terminal_writestring("Failed to initialize keyboard\n");
+		return;
+	}
+
 	// Show system ready message
 	terminal_setcolor(VGA_COLOR_GREEN);
-	terminal_writestring("System initialized successfully\n");
+	terminal_writestring("System initialized successfully!\n");
 	terminal_setcolor(VGA_COLOR_WHITE);
+
+	// Start shell
 	terminal_writestring("Starting shell...\n\n");
-
-	timer_delay_ms(1000);
-
-	shell_init();
-	shell_run();  // Start the shell command processing loop
-
-	// Main kernel loop
-	while(1) {
-		__asm__("hlt");
-	}
+	shell_start();
 }
