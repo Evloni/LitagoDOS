@@ -1,5 +1,5 @@
 #include "../../include/fs/fat16.h"
-#include "../../include/drivers/ata.h"
+#include "../../include/drivers/iso_fs.h"
 #include "../../include/vga.h"
 #include <string.h>
 
@@ -22,8 +22,14 @@ static uint32_t root_dir_sectors;
 
 // Initialize FAT16 filesystem
 bool fat16_init(void) {
+    // Initialize ISO filesystem first
+    if (!iso_fs_init()) {
+        terminal_writestring("Failed to initialize ISO filesystem\n");
+        return false;
+    }
+
     // Read boot sector
-    if (!ata_read_sectors(0, 1, &boot_sector)) {
+    if (!iso_fs_read_sectors(0, 1, &boot_sector)) {
         terminal_writestring("Failed to read boot sector\n");
         return false;
     }
@@ -53,7 +59,7 @@ bool fat16_init(void) {
     }
 
     // Read FAT table
-    if (!ata_read_sectors(fat_start_sector, sectors_per_fat, fat_table)) {
+    if (!iso_fs_read_sectors(fat_start_sector, sectors_per_fat, fat_table)) {
         terminal_writestring("Failed to read FAT table\n");
         free(fat_table);
         fat_table = NULL;
@@ -121,7 +127,7 @@ bool fat16_read_root_dir(void) {
         return false;
     }
 
-    if (!ata_read_sectors(root_dir_start_sector, root_dir_sectors, root_dir)) {
+    if (!iso_fs_read_sectors(root_dir_start_sector, root_dir_sectors, root_dir)) {
         terminal_writestring("Failed to read root directory\n");
         free(root_dir);
         return false;
@@ -195,7 +201,7 @@ int fat16_read_file(const char* filename, void* buffer, uint32_t max_size) {
         return 0;
     }
 
-    if (!ata_read_sectors(root_dir_start_sector, root_dir_sectors, root_dir)) {
+    if (!iso_fs_read_sectors(root_dir_start_sector, root_dir_sectors, root_dir)) {
         free(root_dir);
         return 0;
     }
@@ -249,7 +255,7 @@ int fat16_read_file(const char* filename, void* buffer, uint32_t max_size) {
 
     while (cluster != 0xFFFF && !fat16_is_end_of_chain(cluster)) {
         uint32_t lba = fat16_cluster_to_lba(cluster);
-        if (!ata_read_sectors(lba, boot_sector.sectors_per_cluster, data_buffer + bytes_read)) {
+        if (!iso_fs_read_sectors(lba, boot_sector.sectors_per_cluster, data_buffer + bytes_read)) {
             free(root_dir);
             return 0;
         }
@@ -336,7 +342,7 @@ bool fat16_remove_file(const char* filename) {
     if (!root_dir) return false;
     
     // Read root directory
-    if (!ata_read_sectors(root_dir_start_sector, root_dir_sectors, root_dir)) {
+    if (!iso_fs_read_sectors(root_dir_start_sector, root_dir_sectors, root_dir)) {
         free(root_dir);
         return false;
     }
@@ -380,7 +386,7 @@ bool fat16_remove_file(const char* filename) {
         }
 
         // Write back FAT table first
-        if (!ata_write_sectors(fat_start_sector, sectors_per_fat, fat_table)) {
+        if (!iso_fs_write_sectors(fat_start_sector, sectors_per_fat, fat_table)) {
             free(root_dir);
             return false;
         }
@@ -391,8 +397,14 @@ bool fat16_remove_file(const char* filename) {
     root_dir[file_index].starting_cluster = 0;  // Clear starting cluster
     root_dir[file_index].file_size = 0;        // Clear file size
 
+    // Write back FAT table
+    if (!iso_fs_write_sectors(fat_start_sector, sectors_per_fat, fat_table)) {
+        free(root_dir);
+        return false;
+    }
+
     // Write back root directory
-    if (!ata_write_sectors(root_dir_start_sector, root_dir_sectors, root_dir)) {
+    if (!iso_fs_write_sectors(root_dir_start_sector, root_dir_sectors, root_dir)) {
         free(root_dir);
         return false;
     }
@@ -405,7 +417,7 @@ bool fat16_write_file(const char* filename, const void* buffer, uint32_t size) {
     // Only support root directory
     fat16_dir_entry_t* root_dir = (fat16_dir_entry_t*)malloc(root_dir_sectors * boot_sector.bytes_per_sector);
     if (!root_dir) return false;
-    if (!ata_read_sectors(root_dir_start_sector, root_dir_sectors, root_dir)) {
+    if (!iso_fs_read_sectors(root_dir_start_sector, root_dir_sectors, root_dir)) {
         free(root_dir);
         return false;
     }
@@ -505,7 +517,7 @@ bool fat16_write_file(const char* filename, const void* buffer, uint32_t size) {
         // Write data to cluster
         uint32_t lba = fat16_cluster_to_lba(free_cluster);
         uint32_t to_write = (size - bytes_written > bytes_per_cluster) ? bytes_per_cluster : (size - bytes_written);
-        if (!ata_write_sectors(lba, boot_sector.sectors_per_cluster, (uint8_t*)buffer + bytes_written)) {
+        if (!iso_fs_write_sectors(lba, boot_sector.sectors_per_cluster, (uint8_t*)buffer + bytes_written)) {
             // If write failed, free all allocated clusters
             if (first_cluster != 0) {
                 uint16_t cluster = first_cluster;
@@ -526,12 +538,12 @@ bool fat16_write_file(const char* filename, const void* buffer, uint32_t size) {
     file_entry->file_size = size;
 
     // Write back FAT table
-    if (!ata_write_sectors(fat_start_sector, sectors_per_fat, fat_table)) {
+    if (!iso_fs_write_sectors(fat_start_sector, sectors_per_fat, fat_table)) {
         free(root_dir);
         return false;
     }
     // Write back root directory
-    if (!ata_write_sectors(root_dir_start_sector, root_dir_sectors, root_dir)) {
+    if (!iso_fs_write_sectors(root_dir_start_sector, root_dir_sectors, root_dir)) {
         free(root_dir);
         return false;
     }
@@ -543,7 +555,7 @@ bool fat16_create_file(const char* filename) {
     // Only support root directory
     fat16_dir_entry_t* root_dir = (fat16_dir_entry_t*)malloc(root_dir_sectors * boot_sector.bytes_per_sector);
     if (!root_dir) return false;
-    if (!ata_read_sectors(root_dir_start_sector, root_dir_sectors, root_dir)) {
+    if (!iso_fs_read_sectors(root_dir_start_sector, root_dir_sectors, root_dir)) {
         free(root_dir);
         return false;
     }
@@ -609,13 +621,13 @@ bool fat16_create_file(const char* filename) {
     fat_table[free_cluster] = 0xFFF8;
 
     // Write back FAT table
-    if (!ata_write_sectors(fat_start_sector, sectors_per_fat, fat_table)) {
+    if (!iso_fs_write_sectors(fat_start_sector, sectors_per_fat, fat_table)) {
         free(root_dir);
         return false;
     }
 
     // Write back root directory
-    bool ok = ata_write_sectors(root_dir_start_sector, root_dir_sectors, root_dir);
+    bool ok = iso_fs_write_sectors(root_dir_start_sector, root_dir_sectors, root_dir);
     free(root_dir);
     return ok;
 } 

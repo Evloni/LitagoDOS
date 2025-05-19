@@ -99,12 +99,20 @@ ATA_OBJ = $(BUILD_DIR)/ata.o
 EDITOR_C = $(SRC_DIR)/editor.c
 EDITOR_OBJ = $(BUILD_DIR)/editor.o
 
-# Add FAT16 object to the list of objects
+# ISO filesystem driver files
+ISO_FS_C = $(DRIVERS_DIR)/iso_fs.c
+ISO_FS_OBJ = $(BUILD_DIR)/iso_fs.o
+
+# ISO filesystem test
+ISO_FS_TEST_C = $(SRC_DIR)/tests/iso_fs_test.c
+ISO_FS_TEST_OBJ = $(BUILD_DIR)/tests/iso_fs_test.o
+
+# Add ISO_FS_OBJ and ISO_FS_TEST_OBJ to the OBJS list
 OBJS = $(BOOT_OBJ) $(KERNEL_OBJ) $(VGA_OBJ) $(IO_OBJ) $(IDT_ASM_OBJ) $(IDT_C_OBJ) \
        $(GDT_C_OBJ) $(VGA_DRIVER_OBJ) $(KEYBOARD_DRIVER_OBJ) $(TIMER_DRIVER_OBJ) \
        $(STRING_OBJ) $(SHELL_OBJ) $(PMM_OBJ) $(MEMORY_MAP_OBJ) $(HEAP_OBJ) $(STDLIB_OBJ) $(LIBGCC_OBJ) \
        $(TEST_OBJ) $(TEST2_OBJ) $(SYSCALL_TEST_OBJ) $(SYSCALL_ASM_OBJ) $(SYSCALL_C_OBJ) \
-       $(VERSION_OBJ) $(FAT16_OBJ) $(ATA_OBJ) $(PROGRAM_OBJ) $(EDITOR_OBJ)
+       $(VERSION_OBJ) $(FAT16_OBJ) $(ATA_OBJ) $(PROGRAM_OBJ) $(EDITOR_OBJ) $(ISO_FS_OBJ) $(ISO_FS_TEST_OBJ)
 
 # Default target
 .PHONY: all
@@ -252,6 +260,16 @@ $(TEST2_OBJ): $(TEST2_C) | $(BUILD_DIR)
 # Compile editor
 $(EDITOR_OBJ): $(EDITOR_C) | $(BUILD_DIR)
 	@echo "Compiling editor..."
+	$(CC) $(CFLAGS) $< -o $@
+
+# Compile ISO filesystem driver
+$(ISO_FS_OBJ): $(ISO_FS_C) | $(BUILD_DIR)
+	@echo "Compiling ISO filesystem driver..."
+	$(CC) $(CFLAGS) $< -o $@
+
+# Compile ISO filesystem test
+$(ISO_FS_TEST_OBJ): $(ISO_FS_TEST_C) | $(BUILD_DIR)/tests
+	@echo "Compiling ISO filesystem test..."
 	$(CC) $(CFLAGS) $< -o $@
 
 # Link kernel

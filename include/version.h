@@ -3,11 +3,11 @@
 
 // Version information
 #define VERSION_MAJOR 0
-#define VERSION_MINOR 6
+#define VERSION_MINOR 7
 #define VERSION_PATCH 0
 
 // Version string
-#define VERSION_STRING "0.6.0"
+#define VERSION_STRING "0.7.0"
 
 // Build date and time
 #define BUILD_DATE __DATE__

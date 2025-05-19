@@ -5,8 +5,24 @@
 #include <stddef.h>
 #include <stdint.h>
 
+// Helper function for absolute value
+static int abs(int x) {
+    return (x < 0) ? -x : x;
+}
+
+// BIOS interrupt wrapper
+static void bios_int(int interrupt, int ax, int bx, int cx, int dx) {
+    __asm__ __volatile__(
+        "int $0x10"
+        : : "a"(ax), "b"(bx), "c"(cx), "d"(dx)
+    );
+}
+
 // VGA text mode constants
 static uint16_t* const VGA_MEMORY = (uint16_t*)0xB8000;
+
+// VGA graphics mode memory
+#define VGA_GRAPHICS_MEMORY ((uint8_t*)0xA0000)
 
 // Current cursor position
 static size_t terminal_row;
@@ -18,6 +34,9 @@ static uint16_t* terminal_buffer;
 #define INPUT_BUFFER_SIZE 256
 static char input_buffer[INPUT_BUFFER_SIZE];
 static size_t input_buffer_pos = 0;
+
+// Current VGA mode
+static enum vga_mode current_mode = VGA_MODE_TEXT;
 
 // Initialize terminal interface
 void terminal_initialize(void) {
@@ -225,4 +244,168 @@ void terminal_writehex(uint32_t num) {
 // Initialize VGA
 void vga_init(void) {
     terminal_initialize();
+}
+
+// Set VGA mode
+void vga_set_mode(enum vga_mode mode) {
+    if (mode == current_mode) {
+        return;  // Already in the requested mode
+    }
+
+    if (mode == VGA_MODE_TEXT) {
+        // Switch to text mode (mode 3)
+        outb(0x3D4, 0x00);  // Horizontal total
+        outb(0x3D5, 0x5F);
+        outb(0x3D4, 0x01);  // Horizontal display end
+        outb(0x3D5, 0x4F);
+        outb(0x3D4, 0x02);  // Start horizontal blanking
+        outb(0x3D5, 0x50);
+        outb(0x3D4, 0x03);  // End horizontal blanking
+        outb(0x3D5, 0x82);
+        outb(0x3D4, 0x04);  // Start horizontal retrace
+        outb(0x3D5, 0x54);
+        outb(0x3D4, 0x05);  // End horizontal retrace
+        outb(0x3D5, 0x80);
+        outb(0x3D4, 0x06);  // Vertical total
+        outb(0x3D5, 0x0D);
+        outb(0x3D4, 0x07);  // Overflow
+        outb(0x3D5, 0x3E);
+        outb(0x3D4, 0x08);  // Preset row scan
+        outb(0x3D5, 0x00);
+        outb(0x3D4, 0x09);  // Maximum scan line
+        outb(0x3D5, 0x01);
+        outb(0x3D4, 0x0A);  // Cursor start
+        outb(0x3D5, 0x0F);
+        outb(0x3D4, 0x0B);  // Cursor end
+        outb(0x3D5, 0x0F);
+        outb(0x3D4, 0x0C);  // Start address high
+        outb(0x3D5, 0x00);
+        outb(0x3D4, 0x0D);  // Start address low
+        outb(0x3D5, 0x00);
+        outb(0x3D4, 0x0E);  // Cursor location high
+        outb(0x3D5, 0x00);
+        outb(0x3D4, 0x0F);  // Cursor location low
+        outb(0x3D5, 0x00);
+
+        terminal_clear();
+    } else if (mode == VGA_MODE_GRAPHICS) {
+        // Switch to graphics mode (mode 13h)
+        outb(0x3C2, 0x63);  // Set misc output register
+        
+        // Sequencer registers
+        outb(0x3C4, 0x00);  // Reset
+        outb(0x3C5, 0x03);
+        outb(0x3C4, 0x01);  // Clocking mode
+        outb(0x3C5, 0x01);
+        outb(0x3C4, 0x04);  // Memory mode
+        outb(0x3C5, 0x0E);
+        
+        // Graphics Controller registers
+        outb(0x3CE, 0x05);  // Mode
+        outb(0x3CF, 0x00);
+        outb(0x3CE, 0x06);  // Miscellaneous
+        outb(0x3CF, 0x05);
+        
+        // CRT Controller registers
+        outb(0x3D4, 0x00);  // Horizontal total
+        outb(0x3D5, 0x5F);
+        outb(0x3D4, 0x01);  // Horizontal display end
+        outb(0x3D5, 0x4F);
+        outb(0x3D4, 0x02);  // Start horizontal blanking
+        outb(0x3D5, 0x50);
+        outb(0x3D4, 0x03);  // End horizontal blanking
+        outb(0x3D5, 0x82);
+        outb(0x3D4, 0x04);  // Start horizontal retrace
+        outb(0x3D5, 0x54);
+        outb(0x3D4, 0x05);  // End horizontal retrace
+        outb(0x3D5, 0x80);
+        outb(0x3D4, 0x06);  // Vertical total
+        outb(0x3D5, 0x0D);
+        outb(0x3D4, 0x07);  // Overflow
+        outb(0x3D5, 0x3E);
+        outb(0x3D4, 0x08);  // Preset row scan
+        outb(0x3D5, 0x00);
+        outb(0x3D4, 0x09);  // Maximum scan line
+        outb(0x3D5, 0x41);
+        
+        // Disable cursor
+        outb(0x3D4, 0x0A);
+        outb(0x3D5, 0x20);
+        
+        // Clear graphics screen
+        vga_clear_screen(0);
+    }
+
+    current_mode = mode;
+}
+
+// Plot a pixel in graphics mode
+void vga_plot_pixel(int x, int y, uint8_t color) {
+    if (current_mode != VGA_MODE_GRAPHICS) {
+        return;
+    }
+    if (x < 0 || x >= VGA_GRAPHICS_WIDTH || y < 0 || y >= VGA_GRAPHICS_HEIGHT) {
+        return;
+    }
+    VGA_GRAPHICS_MEMORY[y * VGA_GRAPHICS_WIDTH + x] = color;
+}
+
+// Clear the graphics screen
+void vga_clear_screen(uint8_t color) {
+    if (current_mode != VGA_MODE_GRAPHICS) {
+        return;
+    }
+    for (int i = 0; i < VGA_GRAPHICS_WIDTH * VGA_GRAPHICS_HEIGHT; i++) {
+        VGA_GRAPHICS_MEMORY[i] = color;
+    }
+}
+
+// Draw a line in graphics mode using Bresenham's algorithm
+void vga_draw_line(int x0, int y0, int x1, int y1, uint8_t color) {
+    if (current_mode != VGA_MODE_GRAPHICS) {
+        return;
+    }
+
+    int dx = abs(x1 - x0);
+    int dy = abs(y1 - y0);
+    int sx = (x0 < x1) ? 1 : -1;
+    int sy = (y0 < y1) ? 1 : -1;
+    int err = dx - dy;
+
+    while (1) {
+        vga_plot_pixel(x0, y0, color);
+        if (x0 == x1 && y0 == y1) break;
+        int e2 = 2 * err;
+        if (e2 > -dy) {
+            err -= dy;
+            x0 += sx;
+        }
+        if (e2 < dx) {
+            err += dx;
+            y0 += sy;
+        }
+    }
+}
+
+// Draw a rectangle outline
+void vga_draw_rect(int x, int y, int width, int height, uint8_t color) {
+    if (current_mode != VGA_MODE_GRAPHICS) {
+        return;
+    }
+    vga_draw_line(x, y, x + width - 1, y, color);
+    vga_draw_line(x, y + height - 1, x + width - 1, y + height - 1, color);
+    vga_draw_line(x, y, x, y + height - 1, color);
+    vga_draw_line(x + width - 1, y, x + width - 1, y + height - 1, color);
+}
+
+// Fill a rectangle
+void vga_fill_rect(int x, int y, int width, int height, uint8_t color) {
+    if (current_mode != VGA_MODE_GRAPHICS) {
+        return;
+    }
+    for (int i = y; i < y + height; i++) {
+        for (int j = x; j < x + width; j++) {
+            vga_plot_pixel(j, i, color);
+        }
+    }
 } 

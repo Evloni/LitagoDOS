@@ -2,7 +2,7 @@
 /build/
 /isodir/
 /isodir/boot/
-/isodir/boot/*.bin
+/isodir/boot/kernel.bin
 /isodir/boot/grub/
 *.o
 *.obj
