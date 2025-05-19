@@ -300,7 +300,64 @@ void shell_start(void) {
             int key = keyboard_getchar();
 
             // Handle special keys
-            if (key == '\b') {  // Backspace
+            if (key == '\033') {  // Escape sequence
+                char next = keyboard_getchar();
+                if (next == '[') {  // Control sequence introducer
+                    char code = keyboard_getchar();
+                    switch (code) {
+                        case 'A':  // Up arrow - previous command
+                            if (history_count > 0) {
+                                // Clear current line
+                                while (cmd_index > 0) {
+                                    terminal_putchar('\b');
+                                    terminal_putchar(' ');
+                                    terminal_putchar('\b');
+                                    cmd_index--;
+                                }
+                                
+                                // Move to previous command in history
+                                if (history_index == -1) {
+                                    history_index = history_count - 1;
+                                } else if (history_index > 0) {
+                                    history_index--;
+                                }
+                                
+                                // Copy command from history
+                                strncpy(cmd_buffer, cmd_history[history_index], MAX_CMD_LENGTH);
+                                cmd_index = strlen(cmd_buffer);
+                                
+                                // Display the command
+                                terminal_writestring(cmd_buffer);
+                            }
+                            break;
+                        case 'B':  // Down arrow - next command
+                            if (history_index != -1) {
+                                // Clear current line
+                                while (cmd_index > 0) {
+                                    terminal_putchar('\b');
+                                    terminal_putchar(' ');
+                                    terminal_putchar('\b');
+                                    cmd_index--;
+                                }
+                                
+                                // Move to next command in history
+                                if (history_index < history_count - 1) {
+                                    history_index++;
+                                    strncpy(cmd_buffer, cmd_history[history_index], MAX_CMD_LENGTH);
+                                } else {
+                                    history_index = -1;
+                                    cmd_buffer[0] = '\0';
+                                }
+                                
+                                // Update display
+                                cmd_index = strlen(cmd_buffer);
+                                terminal_writestring(cmd_buffer);
+                            }
+                            break;
+                    }
+                }
+            }
+            else if (key == '\b') {  // Backspace
                 if (cmd_index > 0) {
                     cmd_index--;
                     cmd_buffer[cmd_index] = '\0';

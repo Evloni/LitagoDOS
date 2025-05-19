@@ -38,15 +38,17 @@
 - [x] Design simple file system
   - [x] Basic directory structure
   - [x] File operations (create, read, write, delete)
-- [x] Implement FAT16 support (read-only root directory listing implemented)
-  - [x] File system driver (read-only, root directory listing)
+- [x] Implement FAT16 support
+  - [x] File system driver
   - [x] File read support (cat)
   - [x] File write support
+  - [x] File deletion support (rm)
+  - [x] Directory listing (ls)
 
 ## Phase 4: Shell and Basic Commands
 - [x] Implement command-line shell
   - [x] Command parser
-  - [x] Command history
+  - [x] Command history with arrow key navigation
   - [x] Basic command execution
 - [x] Create basic commands
   - [x] `ls` - List directory contents
@@ -58,6 +60,8 @@
   - [x] `disktest` - Test disk driver
   - [x] `memtest` - Basic memory test
   - [x] `memtest2` - Advanced memory management test (PMM + heap)
+  - [x] `edit` - Text editor
+  - [x] `rm` - Remove files
 
 ## Phase 5: Memory Management
 - [x] Implement basic memory management
@@ -71,7 +75,7 @@
 ## Phase 6: Device Drivers
 - [x] Implement basic device drivers
   - [x] VGA driver
-  - [x] Keyboard driver registration
+  - [x] Keyboard driver with arrow key support
   - [x] Disk driver (QEMU-attached FAT16 image)
   - [ ] Serial port driver
   - [x] Timer driver
@@ -83,12 +87,14 @@
 - [x] Improve terminal interface
   - [x] Command line editing
   - [x] Color support
-  - [ ] Cursor movement
+  - [x] Cursor movement
   - [x] Debug output system
   - [ ] Tab completion
-- [ ] Add basic text editor
-  - [ ] Line editing
-  - [ ] File saving/loading
+- [x] Add basic text editor
+  - [x] Line editing
+  - [x] File saving/loading
+  - [x] Cursor movement
+  - [x] Status bar
 
 ## Phase 8: Networking (Optional)
 - [ ] Implement basic networking
@@ -108,19 +114,19 @@
 
 ## Current Progress
 - Bootloader, kernel, VGA, keyboard, and memory management are implemented and stable
-- Shell is functional with command parsing and basic commands (`ls`, `echo`, `help`, `clear`, `disktest`, `memtest`, `memtest2`)
-- FAT16 read-only root directory listing works via `ls` command
-- Disk driver works for reading sectors from a QEMU-attached FAT16 image
+- Shell is functional with command parsing, command history navigation, and basic commands
+- FAT16 file system fully implemented with read/write/delete support
+- Text editor implemented with cursor movement and file operations
 - Modular codebase with clear separation of drivers, shell, and file system
 - Memory protection and paging removed for DOS-like authenticity
 - Advanced memory management test available via `memtest2` shell command
 
 ## Next Steps
-1. Complete keyboard driver implementation and input handling
-2. Implement serial port driver
-3. Add floppy and hard disk drivers
-4. Add cursor movement and tab completion to shell
-5. Add basic text editor
+1. Implement tab completion in shell
+2. Add syntax highlighting to text editor
+3. Implement serial port driver
+4. Add floppy and hard disk drivers
+5. Create comprehensive test suite
 
 ## Development Guidelines
 1. Start with the simplest working version and iterate
