@@ -142,6 +142,47 @@ bool editor_handle_input(Editor* editor) {
         return false;  // Exit editor loop
     }
     
+    // Handle arrow keys and other navigation
+    if (c == '\033') {  // Escape sequence
+        char next = keyboard_getchar();
+        if (next == '[') {  // Control sequence introducer
+            char code = keyboard_getchar();
+            switch (code) {
+                case 'A':  // Up arrow
+                    if (editor->cursor_y > 0) {
+                        editor->cursor_y--;
+                        // Adjust cursor_x to not exceed line length
+                        int line_len = strlen(editor->lines[editor->cursor_y]);
+                        if (editor->cursor_x > line_len) {
+                            editor->cursor_x = line_len;
+                        }
+                    }
+                    break;
+                case 'B':  // Down arrow
+                    if (editor->cursor_y < editor->num_lines - 1) {
+                        editor->cursor_y++;
+                        // Adjust cursor_x to not exceed line length
+                        int line_len = strlen(editor->lines[editor->cursor_y]);
+                        if (editor->cursor_x > line_len) {
+                            editor->cursor_x = line_len;
+                        }
+                    }
+                    break;
+                case 'C':  // Right arrow
+                    if (editor->cursor_x < strlen(editor->lines[editor->cursor_y])) {
+                        editor->cursor_x++;
+                    }
+                    break;
+                case 'D':  // Left arrow
+                    if (editor->cursor_x > 0) {
+                        editor->cursor_x--;
+                    }
+                    break;
+            }
+        }
+        return true;
+    }
+    
     switch (c) {
         case '\b':  // Backspace
             editor_delete_char(editor);

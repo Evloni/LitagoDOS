@@ -108,6 +108,10 @@ void keyboard_handler(struct regs *r) {
             case 0x36: modifier_state.shift = true; break;  // Right shift
             case 0x1D: modifier_state.ctrl = true; break;   // Left control
             case 0x38: modifier_state.alt = true; break;    // Left alt
+            case 0x48: keyboard_buffer_add('\033'); keyboard_buffer_add('['); keyboard_buffer_add('A'); break;  // Up arrow
+            case 0x50: keyboard_buffer_add('\033'); keyboard_buffer_add('['); keyboard_buffer_add('B'); break;  // Down arrow
+            case 0x4D: keyboard_buffer_add('\033'); keyboard_buffer_add('['); keyboard_buffer_add('C'); break;  // Right arrow
+            case 0x4B: keyboard_buffer_add('\033'); keyboard_buffer_add('['); keyboard_buffer_add('D'); break;  // Left arrow
             default: {
                 // Only process scancodes within our mapping range
                 if (scancode < sizeof(scancode_to_ascii)) {
