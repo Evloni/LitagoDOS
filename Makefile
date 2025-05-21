@@ -1,13 +1,29 @@
 # Compiler and linker settings
 ASM = nasm
-CC = gcc
-LD = ld
-
+CC = i686-elf-gcc
+LD = i686-elf-ld
 
 # Flags
 ASMFLAGS = -f elf32
-CFLAGS = -m32 -ffreestanding -fno-pie -fno-stack-protector -nostdlib -c -Iinclude
-LDFLAGS = -m elf_i386 -T linker.ld -nostdlib
+CFLAGS = -ffreestanding -fno-pie -fno-stack-protector -nostdlib -c -Iinclude -std=gnu99 -Wall -Wextra -O2 -g
+LDFLAGS = -T linker.ld -nostdlib -L$(shell $(CC) -print-libgcc-file-name | xargs dirname) -lgcc -z noexecstack
+
+# Add these new variables for better organization
+CXX = i686-elf-g++
+AR = i686-elf-ar
+AS = i686-elf-as
+OBJCOPY = i686-elf-objcopy
+OBJDUMP = i686-elf-objdump
+
+# Add these flags for better debugging
+DEBUG_FLAGS = -g -DDEBUG
+RELEASE_FLAGS = -O2 -DNDEBUG
+
+# Add these flags for better optimization
+OPTIMIZATION_FLAGS = -O2 -fomit-frame-pointer -ffunction-sections -fdata-sections
+
+# Combine flags
+CFLAGS += $(OPTIMIZATION_FLAGS)
 
 # Directories
 BUILD_DIR = build
