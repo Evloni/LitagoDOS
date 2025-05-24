@@ -11,14 +11,14 @@ extern struct modifier_state modifier_state;
 #define EDITOR_MAX_LINES 1000
 #define EDITOR_MAX_LINE_LENGTH 256
 #define EDITOR_EDITABLE_HEIGHT (VGA_HEIGHT - 1)  // Leave one line for status bar
-#define LINE_NUMBER_GUTTER_WIDTH 2  // Reduced from 5 to 2
+#define LINE_NUMBER_GUTTER_WIDTH 4  // Increased from 2 to 4 to handle larger numbers
 #define LINE_NUMBER_COLOR VGA_COLOR_DARK_GREY  // Color for line numbers
 
 // Add this helper function at the top of the file, after the includes
 static void format_line_number(char* buffer, int width, int number) {
     // Convert number to string
     int i = width - 1;
-    buffer[i] = ' ';  // Changed from '|' to space
+    buffer[i] = ' ';  // Space separator
     i--;
     
     // Handle zero case
@@ -42,6 +42,18 @@ static void format_line_number(char* buffer, int width, int number) {
     while (i >= 0) {
         buffer[i] = ' ';
         i--;
+    }
+}
+
+// Add this helper function to handle scrolling
+static void editor_adjust_scroll(Editor* editor) {
+    // If cursor is above the visible area, scroll up
+    if (editor->cursor_y < editor->scroll_offset) {
+        editor->scroll_offset = editor->cursor_y;
+    }
+    // If cursor is below the visible area, scroll down
+    else if (editor->cursor_y >= editor->scroll_offset + EDITOR_EDITABLE_HEIGHT) {
+        editor->scroll_offset = editor->cursor_y - EDITOR_EDITABLE_HEIGHT + 1;
     }
 }
 
@@ -248,6 +260,7 @@ bool editor_handle_input(Editor* editor) {
                         if (editor->cursor_x > line_len) {
                             editor->cursor_x = line_len;
                         }
+                        editor_adjust_scroll(editor);
                     }
                     break;
                 case 'B':  // Down arrow
@@ -258,6 +271,7 @@ bool editor_handle_input(Editor* editor) {
                         if (editor->cursor_x > line_len) {
                             editor->cursor_x = line_len;
                         }
+                        editor_adjust_scroll(editor);
                     }
                     break;
                 case 'C':  // Right arrow
@@ -532,6 +546,9 @@ void editor_delete_char(Editor* editor) {
         terminal_set_cursor(editor->cursor_x + LINE_NUMBER_GUTTER_WIDTH, display_y);
         terminal_update_cursor();
     }
+
+    // Add this line after updating cursor position
+    editor_adjust_scroll(editor);
 }
 
 void editor_new_line(Editor* editor) {
@@ -549,6 +566,9 @@ void editor_new_line(Editor* editor) {
         editor->cursor_y++;
         editor->num_lines++;
         editor->modified = true;
+        
+        // Add this line to handle scrolling after new line
+        editor_adjust_scroll(editor);
     }
 }
 
