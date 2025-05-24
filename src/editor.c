@@ -11,6 +11,39 @@ extern struct modifier_state modifier_state;
 #define EDITOR_MAX_LINES 1000
 #define EDITOR_MAX_LINE_LENGTH 256
 #define EDITOR_EDITABLE_HEIGHT (VGA_HEIGHT - 1)  // Leave one line for status bar
+#define LINE_NUMBER_GUTTER_WIDTH 2  // Reduced from 5 to 2
+#define LINE_NUMBER_COLOR VGA_COLOR_DARK_GREY  // Color for line numbers
+
+// Add this helper function at the top of the file, after the includes
+static void format_line_number(char* buffer, int width, int number) {
+    // Convert number to string
+    int i = width - 1;
+    buffer[i] = ' ';  // Changed from '|' to space
+    i--;
+    
+    // Handle zero case
+    if (number == 0) {
+        while (i >= 0) {
+            buffer[i] = ' ';
+            i--;
+        }
+        buffer[width - 2] = '0';
+        return;
+    }
+    
+    // Convert number to string, right-aligned
+    while (number > 0 && i >= 0) {
+        buffer[i] = '0' + (number % 10);
+        number /= 10;
+        i--;
+    }
+    
+    // Fill remaining space with spaces
+    while (i >= 0) {
+        buffer[i] = ' ';
+        i--;
+    }
+}
 
 // Initialize a new editor instance
 void editor_init(Editor* editor) {
@@ -62,10 +95,23 @@ void editor_draw(Editor* editor) {
     for (int i = 0; i < EDITOR_EDITABLE_HEIGHT; i++) {
         int line_num = i + editor->scroll_offset;
         if (line_num < editor->num_lines) {
-            // Draw each character individually to maintain cursor position
+            // Draw line number
+            char line_num_str[LINE_NUMBER_GUTTER_WIDTH + 1];
+            format_line_number(line_num_str, LINE_NUMBER_GUTTER_WIDTH, line_num + 1);
+            line_num_str[LINE_NUMBER_GUTTER_WIDTH] = '\0';
+            
+            // Draw line number in dark grey
+            terminal_setcolor(vga_entry_color(LINE_NUMBER_COLOR, editor->bg_color));
+            for (int j = 0; j < LINE_NUMBER_GUTTER_WIDTH; j++) {
+                terminal_putentryat(line_num_str[j], vga_entry_color(LINE_NUMBER_COLOR, editor->bg_color), j, i);
+            }
+            
+            // Draw line content
+            terminal_setcolor(vga_entry_color(editor->text_color, editor->bg_color));
             char* line = editor->lines[line_num];
             for (int j = 0; line[j] != '\0'; j++) {
-                terminal_putentryat(line[j], vga_entry_color(editor->text_color, editor->bg_color), j, i);
+                terminal_putentryat(line[j], vga_entry_color(editor->text_color, editor->bg_color), 
+                                  j + LINE_NUMBER_GUTTER_WIDTH, i);
             }
         }
     }
@@ -86,15 +132,61 @@ void editor_draw(Editor* editor) {
         terminal_writestring(" (modified)");
     }
     terminal_writestring(" -- ");
+
+    // Add line and column information on the right
+    char position_str[20];
+    int pos = 0;
     
-    // Set cursor position relative to scroll offset
+    // Format "Ln X, Col Y"
+    position_str[pos++] = 'L';
+    position_str[pos++] = 'n';
+    position_str[pos++] = ' ';
+    
+    // Convert line number to string
+    int line_num = editor->cursor_y + 1;
+    if (line_num >= 100) {
+        position_str[pos++] = '0' + (line_num / 100);
+        line_num %= 100;
+    }
+    if (line_num >= 10) {
+        position_str[pos++] = '0' + (line_num / 10);
+        line_num %= 10;
+    }
+    position_str[pos++] = '0' + line_num;
+    
+    position_str[pos++] = ',';
+    position_str[pos++] = ' ';
+    position_str[pos++] = 'C';
+    position_str[pos++] = 'o';
+    position_str[pos++] = 'l';
+    position_str[pos++] = ' ';
+    
+    // Convert column number to string
+    int col_num = editor->cursor_x + 1;
+    if (col_num >= 100) {
+        position_str[pos++] = '0' + (col_num / 100);
+        col_num %= 100;
+    }
+    if (col_num >= 10) {
+        position_str[pos++] = '0' + (col_num / 10);
+        col_num %= 10;
+    }
+    position_str[pos++] = '0' + col_num;
+    position_str[pos] = '\0';
+
+    // Calculate position to display the line/col info
+    int right_pos = VGA_WIDTH - pos - 1;
+    terminal_set_cursor(right_pos, VGA_HEIGHT - 1);
+    terminal_writestring(position_str);
+    
+    // Set cursor position relative to scroll offset, accounting for line number gutter
     int display_y = editor->cursor_y - editor->scroll_offset;
     if (display_y >= 0 && display_y < EDITOR_EDITABLE_HEIGHT) {
-        terminal_set_cursor(editor->cursor_x, display_y);
+        terminal_set_cursor(editor->cursor_x + LINE_NUMBER_GUTTER_WIDTH, display_y);
         terminal_update_cursor();
     } else {
         // If cursor is not visible, place it at the end of the last visible line
-        terminal_set_cursor(0, EDITOR_EDITABLE_HEIGHT - 1);
+        terminal_set_cursor(LINE_NUMBER_GUTTER_WIDTH, EDITOR_EDITABLE_HEIGHT - 1);
         terminal_update_cursor();
     }
 }
@@ -366,16 +458,16 @@ void editor_insert_char(Editor* editor, char c) {
 
             // Redraw the entire line from the modified position
             for (int i = editor->cursor_x - 1; line[i] != '\0'; i++) {
-                terminal_putentryat(line[i], color, i, display_y);
+                terminal_putentryat(line[i], color, i + LINE_NUMBER_GUTTER_WIDTH, display_y);
             }
 
             // Clear the rest of the line visually
-            for (int i = strlen(line); i < VGA_WIDTH; i++) {
-                terminal_putentryat(' ', color, i, display_y);
+            for (int i = strlen(line); i < VGA_WIDTH - LINE_NUMBER_GUTTER_WIDTH; i++) {
+                terminal_putentryat(' ', color, i + LINE_NUMBER_GUTTER_WIDTH, display_y);
             }
 
             // Update hardware cursor position using screen-relative coordinates
-            terminal_set_cursor(editor->cursor_x, display_y);
+            terminal_set_cursor(editor->cursor_x + LINE_NUMBER_GUTTER_WIDTH, display_y);
             terminal_update_cursor();
         }
     }
@@ -383,33 +475,62 @@ void editor_insert_char(Editor* editor, char c) {
 
 void editor_delete_char(Editor* editor) {
     if (editor->cursor_x > 0) {
+        // Normal backspace within the same line
         char* line = editor->lines[editor->cursor_y];
         int len = strlen(line);
         memmove(&line[editor->cursor_x - 1], &line[editor->cursor_x], len - editor->cursor_x + 1);
         editor->cursor_x--;
         editor->modified = true;
-
-        // Compute visible screen row
-        int display_y = editor->cursor_y - editor->scroll_offset;
-
-        // Draw only if the line is on screen
-        if (display_y >= 0 && display_y < EDITOR_EDITABLE_HEIGHT) {
-            uint8_t color = vga_entry_color(editor->text_color, editor->bg_color);
-
-            // Redraw the entire line from the modified position
-            for (int i = editor->cursor_x; line[i] != '\0'; i++) {
-                terminal_putentryat(line[i], color, i, display_y);
+    } else if (editor->cursor_y > 0) {
+        // Backspace at the beginning of a line - join with previous line
+        char* current_line = editor->lines[editor->cursor_y];
+        char* prev_line = editor->lines[editor->cursor_y - 1];
+        int prev_len = strlen(prev_line);
+        int current_len = strlen(current_line);
+        
+        // Check if the combined length would exceed the maximum
+        if (prev_len + current_len < EDITOR_MAX_LINE_LENGTH) {
+            // Append current line to previous line
+            strcat(prev_line, current_line);
+            
+            // Move all lines up
+            for (int i = editor->cursor_y; i < editor->num_lines - 1; i++) {
+                strcpy(editor->lines[i], editor->lines[i + 1]);
             }
-
-            // Clear the rest of the line visually
-            for (int i = strlen(line); i < VGA_WIDTH; i++) {
-                terminal_putentryat(' ', color, i, display_y);
-            }
-
-            // Update hardware cursor position using screen-relative coordinates
-            terminal_set_cursor(editor->cursor_x, display_y);
-            terminal_update_cursor();
+            
+            // Clear the last line
+            editor->lines[editor->num_lines - 1][0] = '\0';
+            
+            // Update editor state
+            editor->cursor_y--;
+            editor->cursor_x = prev_len;
+            editor->num_lines--;
+            editor->modified = true;
         }
+    }
+
+    // Compute visible screen row
+    int display_y = editor->cursor_y - editor->scroll_offset;
+
+    // Draw only if the line is on screen
+    if (display_y >= 0 && display_y < EDITOR_EDITABLE_HEIGHT) {
+        uint8_t color = vga_entry_color(editor->text_color, editor->bg_color);
+        char* line = editor->lines[editor->cursor_y];
+        int line_len = strlen(line);  // Calculate line length before the loop
+
+        // Redraw the entire line from the modified position
+        for (int i = editor->cursor_x; line[i] != '\0'; i++) {
+            terminal_putentryat(line[i], color, i + LINE_NUMBER_GUTTER_WIDTH, display_y);
+        }
+
+        // Clear the rest of the line visually
+        for (int i = line_len; i < VGA_WIDTH - LINE_NUMBER_GUTTER_WIDTH; i++) {
+            terminal_putentryat(' ', color, i + LINE_NUMBER_GUTTER_WIDTH, display_y);
+        }
+
+        // Update hardware cursor position using screen-relative coordinates
+        terminal_set_cursor(editor->cursor_x + LINE_NUMBER_GUTTER_WIDTH, display_y);
+        terminal_update_cursor();
     }
 }
 
