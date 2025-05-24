@@ -12,13 +12,13 @@ static char toupper(char c) {
 }
 
 // Global variables
-static fat16_boot_sector_t boot_sector;
-static uint16_t* fat_table = NULL;
-static uint32_t fat_start_sector;
-static uint32_t root_dir_start_sector;
-static uint32_t data_start_sector;
-static uint32_t sectors_per_fat;
-static uint32_t root_dir_sectors;
+fat16_boot_sector_t boot_sector;
+uint16_t* fat_table = NULL;
+uint32_t fat_start_sector;
+uint32_t root_dir_start_sector;
+uint32_t data_start_sector;
+uint32_t sectors_per_fat;
+uint32_t root_dir_sectors;
 
 // Initialize FAT16 filesystem
 bool fat16_init(void) {

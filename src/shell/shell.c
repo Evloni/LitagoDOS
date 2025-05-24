@@ -11,9 +11,15 @@
 #include "../../include/test.h"
 #include "../../include/string.h"
 #include "../../include/editor.h"
+#include "../../include/drivers/iso_fs.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
+
+// External declarations for FAT16 variables
+extern fat16_boot_sector_t boot_sector;
+extern uint32_t root_dir_sectors;
+extern uint32_t root_dir_start_sector;
 
 // Shell visual elements
 #define PROMPT_COLOR VGA_COLOR_LIGHT_GREEN
@@ -34,6 +40,13 @@ static int history_count = 0;
 static int history_index = -1;  // Start at -1 to indicate no history position
 static int cmd_index = 0;
 
+// Array of built-in commands
+static const char* builtin_commands[] = {
+    "help", "ls", "cat", "echo", "shutdown", "reboot", "memtest",
+    "memtest2", "memstats", "syscall", "version", "progtest",
+    "mkfile", "rm", "clear", "edit"
+};
+static const int num_builtin_commands = sizeof(builtin_commands) / sizeof(builtin_commands[0]);
 
 void draw_header() {
     terminal_setcolor(HEADER_COLOR);
@@ -142,6 +155,120 @@ static void version() {
     terminal_writestring(" ");
     terminal_writestring(info->build_time);
     terminal_writestring("\n");
+}
+
+// Function to get all possible completions
+static void get_completions(const char* partial, char** completions, int* num_completions) {
+    *num_completions = 0;
+    
+    // Check built-in commands
+    for (int i = 0; i < num_builtin_commands; i++) {
+        if (strncmp(builtin_commands[i], partial, strlen(partial)) == 0) {
+            completions[(*num_completions)++] = (char*)builtin_commands[i];
+        }
+    }
+    
+    // Check files in current directory
+    fat16_dir_entry_t* root_dir = (fat16_dir_entry_t*)malloc(root_dir_sectors * boot_sector.bytes_per_sector);
+    if (!root_dir) return;
+    
+    if (!iso_fs_read_sectors(root_dir_start_sector, root_dir_sectors, root_dir)) {
+        free(root_dir);
+        return;
+    }
+    
+    for (int i = 0; i < boot_sector.root_entries; i++) {
+        if (root_dir[i].filename[0] == 0x00) break;
+        if (root_dir[i].filename[0] == 0xE5) continue;
+        if ((root_dir[i].attributes & FAT16_ATTR_LONG_NAME) == FAT16_ATTR_LONG_NAME) continue;
+        if (root_dir[i].attributes & FAT16_ATTR_VOLUME_ID) continue;
+        
+        // Format filename
+        char name[13] = {0};
+        int name_idx = 0;
+        for (int j = 0; j < 8; j++) {
+            if (root_dir[i].filename[j] != ' ') {
+                name[name_idx++] = root_dir[i].filename[j];
+            }
+        }
+        if (root_dir[i].extension[0] != ' ') {
+            name[name_idx++] = '.';
+            for (int j = 0; j < 3; j++) {
+                if (root_dir[i].extension[j] != ' ') {
+                    name[name_idx++] = root_dir[i].extension[j];
+                }
+            }
+        }
+        name[name_idx] = '\0';
+        
+        if (strncmp(name, partial, strlen(partial)) == 0) {
+            completions[(*num_completions)++] = strdup(name);
+        }
+    }
+    
+    free(root_dir);
+}
+
+// Function to handle tab completion
+static void handle_tab_completion(void) {
+    char* completions[256];  // Maximum number of completions
+    int num_completions = 0;
+    
+    // Get all possible completions
+    get_completions(cmd_buffer, completions, &num_completions);
+    
+    if (num_completions == 0) {
+        // No completions found
+        return;
+    } else if (num_completions == 1) {
+        // Single completion - complete it
+        // Clear current line
+        while (cmd_index > 0) {
+            terminal_putchar('\b');
+            terminal_putchar(' ');
+            terminal_putchar('\b');
+            cmd_index--;
+        }
+        
+        // Copy completion to buffer
+        strcpy(cmd_buffer, completions[0]);
+        cmd_index = strlen(cmd_buffer);
+        
+        // Redraw the command
+        terminal_writestring(cmd_buffer);
+        terminal_get_cursor(&prompt_x, &prompt_y);
+    } else {
+        // Multiple completions - show all possibilities
+        terminal_writestring("\n");
+        for (int i = 0; i < num_completions; i++) {
+            terminal_writestring(completions[i]);
+            terminal_writestring("\n");
+        }
+        terminal_writestring("\n");
+        
+        // Redraw prompt and command
+        draw_prompt();
+        
+        // Clear and redraw the command
+        while (cmd_index > 0) {
+            terminal_putchar('\b');
+            terminal_putchar(' '); 
+            terminal_putchar('\b');
+            cmd_index--;
+        }
+        terminal_writestring(cmd_buffer);
+        cmd_index = strlen(cmd_buffer);
+        
+        // Update cursor position
+        terminal_get_cursor(&prompt_x, &prompt_y);
+    }
+    
+    // Free allocated completions
+    for (int i = 0; i < num_completions; i++) {
+        if (completions[i] != builtin_commands[i]) {  // Only free if it's not a builtin command
+            free(completions[i]);
+        }
+    }
 }
 
 // Function to handle shell commands
@@ -298,7 +425,12 @@ void shell_start(void) {
         // Read command
         while (1) {
             int key = keyboard_getchar();
-
+            
+            if (key == '\t') {  // Tab key
+                handle_tab_completion();
+                continue;
+            }
+            
             // Handle special keys
             if (key == '\033') {  // Escape sequence
                 char next = keyboard_getchar();
@@ -328,6 +460,8 @@ void shell_start(void) {
                                 
                                 // Display the command
                                 terminal_writestring(cmd_buffer);
+                                // Update cursor position
+                                terminal_get_cursor(&prompt_x, &prompt_y);
                             }
                             break;
                         case 'B':  // Down arrow - next command
@@ -352,6 +486,8 @@ void shell_start(void) {
                                 // Update display
                                 cmd_index = strlen(cmd_buffer);
                                 terminal_writestring(cmd_buffer);
+                                // Update cursor position
+                                terminal_get_cursor(&prompt_x, &prompt_y);
                             }
                             break;
                     }
@@ -364,6 +500,8 @@ void shell_start(void) {
                     terminal_putchar('\b');
                     terminal_putchar(' ');
                     terminal_putchar('\b');
+                    // Update cursor position after backspace
+                    terminal_get_cursor(&prompt_x, &prompt_y);
                 }
             }
             else if (key == '\n') {  // Enter
@@ -375,8 +513,7 @@ void shell_start(void) {
                 cmd_buffer[cmd_index] = (char)key;
                 terminal_putchar((char)key);
                 cmd_index++;
-                
-                // Update cursor coordinates after each character
+                // Update cursor position after each character
                 terminal_get_cursor(&prompt_x, &prompt_y);
             }
         }
