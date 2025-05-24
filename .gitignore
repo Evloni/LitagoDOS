@@ -29,6 +29,7 @@ isodir/
 
 # Binary files
 kernel.bin
+grub.cfg
 *.bin
 *.exe
 *.dll

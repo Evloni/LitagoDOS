@@ -107,6 +107,7 @@
   - [x] Color support
   - [x] Cursor movement
   - [x] Debug output system
+  - [x] Tab Completion
 - [x] Add basic text editor
   - [x] Line editing
   - [x] File saving/loading

@@ -48,6 +48,61 @@ static const char* builtin_commands[] = {
 };
 static const int num_builtin_commands = sizeof(builtin_commands) / sizeof(builtin_commands[0]);
 
+// Function to calculate Levenshtein distance between two strings
+static int levenshtein_distance(const char* s1, const char* s2) {
+    int len1 = strlen(s1);
+    int len2 = strlen(s2);
+    
+    // Use a fixed-size array that's large enough for our commands
+    #define MAX_CMD_LEN 32
+    int matrix[MAX_CMD_LEN + 1][MAX_CMD_LEN + 1];
+    
+    // Initialize first row and column
+    for (int i = 0; i <= len1; i++) matrix[i][0] = i;
+    for (int j = 0; j <= len2; j++) matrix[0][j] = j;
+    
+    // Fill the matrix
+    for (int i = 1; i <= len1; i++) {
+        for (int j = 1; j <= len2; j++) {
+            if (s1[i-1] == s2[j-1]) {
+                matrix[i][j] = matrix[i-1][j-1];
+            } else {
+                int min = matrix[i-1][j-1];  // substitution
+                if (matrix[i-1][j] < min) min = matrix[i-1][j];  // deletion
+                if (matrix[i][j-1] < min) min = matrix[i][j-1];  // insertion
+                matrix[i][j] = min + 1;
+            }
+        }
+    }
+    
+    return matrix[len1][len2];
+}
+
+// Function to find the closest matching command
+static const char* find_closest_command(const char* input) {
+    const char* closest = NULL;
+    int min_distance = 999;  // Start with a large number
+    int threshold = 3;  // Maximum edit distance to consider
+    
+    // First try to find commands that start with the input
+    for (int i = 0; i < num_builtin_commands; i++) {
+        if (strncmp(builtin_commands[i], input, strlen(input)) == 0) {
+            return builtin_commands[i];
+        }
+    }
+    
+    // If no prefix match found, use Levenshtein distance
+    for (int i = 0; i < num_builtin_commands; i++) {
+        int distance = levenshtein_distance(input, builtin_commands[i]);
+        if (distance < min_distance && distance <= threshold) {
+            min_distance = distance;
+            closest = builtin_commands[i];
+        }
+    }
+    
+    return closest;
+}
+
 void draw_header() {
     terminal_setcolor(HEADER_COLOR);
     terminal_set_cursor(2, 1);
@@ -273,7 +328,42 @@ static void handle_tab_completion(void) {
 
 // Function to handle shell commands
 static void handle_command(const char* command) {
-    if (strncmp(command, "help", 4) == 0) {
+    // Skip empty commands
+    if (command[0] == '\0') return;
+    
+    // Extract the command name (first word)
+    char cmd_name[32] = {0};
+    int i = 0;
+    while (command[i] != ' ' && command[i] != '\0' && i < 31) {
+        cmd_name[i] = command[i];
+        i++;
+    }
+    cmd_name[i] = '\0';
+    
+    // Check if command exists
+    bool command_found = false;
+    for (int i = 0; i < num_builtin_commands; i++) {
+        if (strcmp(cmd_name, builtin_commands[i]) == 0) {
+            command_found = true;
+            break;
+        }
+    }
+    
+    // If command not found, suggest similar commands
+    if (!command_found) {
+        const char* suggestion = find_closest_command(cmd_name);
+        if (suggestion) {
+            terminal_writestring("Command not found. Did you mean: ");
+            terminal_writestring(suggestion);
+            terminal_writestring("?\n");
+        } else {
+            terminal_writestring("Unknown command. Type 'help' for available commands.\n");
+        }
+        return;
+    }
+    
+    // Handle known commands
+    if (strcmp(cmd_name, "help") == 0) {
         terminal_writestring("Available commands:\n");
         terminal_writestring("  ls [path]      - List directory contents\n");
         terminal_writestring("  cat <file>     - Display file contents\n");
@@ -291,41 +381,42 @@ static void handle_command(const char* command) {
         terminal_writestring("  rm <file>      - Remove a file\n");
         terminal_writestring("  clear          - Clear the screen\n");
         terminal_writestring("  edit <file>    - Edit a file\n");
-    } else if (strncmp(command, "shutdown", 8) == 0) {
+    } else if (strcmp(cmd_name, "shutdown") == 0) {
         terminal_writestring("Shutting down...\n");
         shutdown();
-    } else if (strncmp(command, "reboot", 6) == 0) {
+    } else if (strcmp(cmd_name, "reboot") == 0) {
         terminal_writestring("Rebooting...\n");
         reboot();
-    } else if (strncmp(command, "echo", 4) == 0) {
-        const char* args = command + 4;
+    } else if (strcmp(cmd_name, "echo") == 0) {
+        const char* args = command + strlen(cmd_name);
+        while (*args == ' ') args++;  // Skip spaces
         if (args != NULL) {
             terminal_writestring(args);
             terminal_writestring("\n");
         } else {
             terminal_writestring("\n");
         }
-    } else if (strcmp(command, "memtest2") == 0) {
+    } else if (strcmp(cmd_name, "memtest2") == 0) {
         test_memory_management();
-    } else if (strcmp(command, "memtest") == 0) {
+    } else if (strcmp(cmd_name, "memtest") == 0) {
         memtest_run();
-    } else if (strncmp(command, "memstats", 8) == 0) {
+    } else if (strcmp(cmd_name, "memstats") == 0) {
         memstats();
-    } else if (strncmp(command, "syscall", 7) == 0) {
+    } else if (strcmp(cmd_name, "syscall") == 0) {
         test_syscalls();
-    } else if (strncmp(command, "version", 7) == 0) {
+    } else if (strcmp(cmd_name, "version") == 0) {
         version();
-    } else if (strcmp(command, "progtest") == 0) {
+    } else if (strcmp(cmd_name, "progtest") == 0) {
         test_program_loading();
-    } else if (strncmp(command, "ls", 2) == 0) {
-        const char* path = command + 2;
+    } else if (strcmp(cmd_name, "ls") == 0) {
+        const char* path = command + strlen(cmd_name);
         while (*path == ' ') path++;  // Skip spaces
         
         if (!fat16_list_directory(path)) {
             terminal_writestring("Failed to list directory\n");
         }
-    } else if (strncmp(command, "cat", 3) == 0) {
-        const char* filename = command + 3;
+    } else if (strcmp(cmd_name, "cat") == 0) {
+        const char* filename = command + strlen(cmd_name);
         while (*filename == ' ') filename++;  // Skip spaces
         
         if (*filename == '\0') {
@@ -351,8 +442,8 @@ static void handle_command(const char* command) {
         }
 
         free(buffer);
-    } else if (strncmp(command, "mkfile", 6) == 0) {
-        const char* filename = command + 6;
+    } else if (strcmp(cmd_name, "mkfile") == 0) {
+        const char* filename = command + strlen(cmd_name);
         while (*filename == ' ') filename++;  // Skip spaces
         
         if (*filename == '\0') {
@@ -365,12 +456,11 @@ static void handle_command(const char* command) {
         } else {
             terminal_writestring("Failed to create file\n");
         }
-    
-    } else if (strcmp(command, "clear") == 0) {
+    } else if (strcmp(cmd_name, "clear") == 0) {
         terminal_clear();
         draw_header();  // Redraw the header after clearing
-    } else if (strncmp(command, "edit", 4) == 0) {
-        const char* filename = command + 4;
+    } else if (strcmp(cmd_name, "edit") == 0) {
+        const char* filename = command + strlen(cmd_name);
         while (*filename == ' ') filename++;  // Skip spaces
         
         if (*filename == '\0') {
@@ -378,8 +468,8 @@ static void handle_command(const char* command) {
             return;
         }
         editor_edit_command(filename);
-    } else if (strncmp(command, "rm", 2) == 0) {
-        const char* filename = command + 2;
+    } else if (strcmp(cmd_name, "rm") == 0) {
+        const char* filename = command + strlen(cmd_name);
         while (*filename == ' ') filename++;  // Skip spaces
         
         if (*filename == '\0') {
@@ -392,8 +482,6 @@ static void handle_command(const char* command) {
         } else {
             terminal_writestring("Failed to remove file\n");
         }
-    } else if (command[0] != '\0') {
-        terminal_writestring("Unknown command. Type 'help' for available commands.\n");
     }
 }
 
