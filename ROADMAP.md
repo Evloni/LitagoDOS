@@ -140,11 +140,11 @@
 - Advanced memory management test available via `memtest2` shell command
 
 ## Next Steps
-1. Implement tab completion in shell
-2. Add syntax highlighting to text editor
-3. Implement serial port driver
-4. Add floppy and hard disk drivers
-5. Create comprehensive test suite
+1. Implement hard disk driver with ATA/IDE support
+2. Add comprehensive test suite
+3. Write documentation
+4. Consider implementing networking features
+5. Add more advanced file system features
 
 ## Development Guidelines
 1. Start with the simplest working version and iterate

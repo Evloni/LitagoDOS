@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 // Simple heap implementation using physical memory pages
-#define HEAP_START 0x1000000  // Start at 16MB
+#define HEAP_START 0x2000000  // Start at 32MB
 #define HEAP_SIZE 0x1000000   // 16MB heap size
 
 static uint32_t heap_ptr = HEAP_START;

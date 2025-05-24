@@ -203,9 +203,14 @@ static void memstats() {
 
 static void version() {
     const struct version_info* info = get_version_info();
-    terminal_writestring("Litago Version ");
+    terminal_writestring(info->os_name);
+    terminal_writestring(" Version ");
     terminal_writestring(info->version_string);
-    terminal_writestring("\nBuild: ");
+    terminal_writestring("\nPlatform: ");
+    terminal_writestring(info->os_platform);
+    terminal_writestring(" (");
+    terminal_writestring(info->os_arch);
+    terminal_writestring(")\nBuild: ");
     terminal_writestring(info->build_date);
     terminal_writestring(" ");
     terminal_writestring(info->build_time);
