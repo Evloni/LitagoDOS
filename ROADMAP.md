@@ -129,6 +129,44 @@
   - [ ] Developer guide
   - [ ] API documentation
 
+## Phase 10: Lua Embedding
+- [ ] Core Integration
+  - [ ] Embed Lua VM
+    - [ ] Include Lua source in kernel
+    - [ ] Configure Lua for bare metal
+    - [ ] Memory management hooks
+    - [ ] Custom allocator implementation
+  - [ ] Basic Runtime
+    - [ ] VM initialization
+    - [ ] State management
+    - [ ] Error handling
+    - [ ] Memory limits
+- [ ] OS Integration
+  - [ ] System Calls
+    - [ ] File operations
+    - [ ] Console I/O
+    - [ ] Memory management
+    - [ ] Process control
+  - [ ] Shell Integration
+    - [ ] Lua command interpreter
+    - [ ] Script execution
+    - [ ] Command line arguments
+    - [ ] Environment variables
+- [ ] Development Environment
+  - [ ] Lua REPL
+    - [ ] Interactive console
+    - [ ] Command history
+    - [ ] Basic debugging
+  - [ ] Script Management
+    - [ ] Script loading
+    - [ ] Bytecode compilation
+    - [ ] Error reporting
+- [ ] Testing
+  - [ ] Core functionality tests
+  - [ ] Memory leak detection
+  - [ ] Performance benchmarks
+  - [ ] Stress testing
+
 ## Current Progress
 - Bootloader, kernel, VGA, keyboard, and memory management are implemented and stable
 - Shell is functional with command parsing, command history navigation, and basic commands
