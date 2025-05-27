@@ -12,6 +12,7 @@
 #include "../include/version.h"
 #include "../include/fs/fat16.h"
 #include "../include/drivers/iso_fs.h"
+#include "../include/utils/progress.h"
 #include <stddef.h>
 
 // Multiboot magic number
@@ -130,6 +131,8 @@ void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 	terminal_setcolor(VGA_COLOR_WHITE);
 
 	// Start shell
-	terminal_writestring("Starting shell...\n\n");
+	terminal_writestring("Starting shell...\n");
+	show_progress_bar(40, 40);  // 40-character wide progress bar
+	terminal_writestring("\n");
 	shell_start();
 }

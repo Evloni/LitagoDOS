@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 // VGA text mode constants
 static const size_t VGA_WIDTH = 80;
@@ -69,6 +70,7 @@ void vga_clear_screen(uint8_t color);
 void vga_draw_line(int x0, int y0, int x1, int y1, uint8_t color);
 void vga_draw_rect(int x, int y, int width, int height, uint8_t color);
 void vga_fill_rect(int x, int y, int width, int height, uint8_t color);
+void vga_set_cursor_visible(bool visible);
 
 // Helper functions
 static inline uint8_t vga_entry_color(enum vga_color fg, enum vga_color bg) {

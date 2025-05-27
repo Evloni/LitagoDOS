@@ -1,4 +1,5 @@
 #include "../include/string.h"
+#include <stdarg.h>
 
 // Reverse a string in place
 static void reverse(char* str, int length) {
@@ -198,4 +199,52 @@ char* strdup(const char* s) {
         memcpy(new, s, len);
     }
     return new;
+}
+
+// Minimal vsnprintf implementation
+int vsnprintf(char* str, size_t size, const char* format, va_list ap) {
+    size_t i = 0;
+    const char* p = format;
+    char buf[32];
+    while (*p && i + 1 < size) {
+        if (*p == '%') {
+            p++;
+            if (*p == 's') {
+                const char* s = va_arg(ap, const char*);
+                while (*s && i + 1 < size) str[i++] = *s++;
+            } else if (*p == 'd') {
+                int val = va_arg(ap, int);
+                itoa(val, buf, 10);
+                const char* s = buf;
+                while (*s && i + 1 < size) str[i++] = *s++;
+            } else if (*p == 'x') {
+                int val = va_arg(ap, int);
+                itoa(val, buf, 16);
+                const char* s = buf;
+                while (*s && i + 1 < size) str[i++] = *s++;
+            } else if (*p == 'c') {
+                char c = (char)va_arg(ap, int);
+                if (i + 1 < size) str[i++] = c;
+            } else if (*p == '%') {
+                str[i++] = '%';
+            } else {
+                // Unknown specifier, just print it
+                str[i++] = '%';
+                if (i + 1 < size) str[i++] = *p;
+            }
+            p++;
+        } else {
+            str[i++] = *p++;
+        }
+    }
+    str[i] = '\0';
+    return (int)i;
+}
+
+int snprintf(char* str, size_t size, const char* format, ...) {
+    va_list ap;
+    va_start(ap, format);
+    int ret = vsnprintf(str, size, format, ap);
+    va_end(ap);
+    return ret;
 }

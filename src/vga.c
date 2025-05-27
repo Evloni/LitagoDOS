@@ -5,6 +5,7 @@
 #include "../include/ansi.h"
 #include <stddef.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 // Helper function for absolute value
 static int abs(int x) {
@@ -42,6 +43,9 @@ static size_t input_buffer_pos = 0;
 
 // Current VGA mode
 static enum vga_mode current_mode = VGA_MODE_TEXT;
+
+// You may need to declare this if not already present
+extern uint16_t* vga_port_addr; // Or however you access VGA registers
 
 // Initialize terminal interface
 void terminal_initialize(void) {
@@ -448,4 +452,20 @@ void vga_fill_rect(int x, int y, int width, int height, uint8_t color) {
             vga_plot_pixel(j, i, color);
         }
     }
+}
+
+void vga_set_cursor_visible(bool visible) {
+    uint8_t cursor_start;
+    // Read current cursor start register value
+    outb(0x3D4, 0x0A);
+    cursor_start = inb(0x3D5);
+
+    if (visible) {
+        cursor_start &= ~0x20; // Clear bit 5 to show cursor
+    } else {
+        cursor_start |= 0x20;  // Set bit 5 to hide cursor
+    }
+
+    outb(0x3D4, 0x0A);
+    outb(0x3D5, cursor_start);
 } 

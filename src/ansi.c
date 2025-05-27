@@ -88,7 +88,9 @@ void ansi_process_char(char c) {
             break;
 
         case ANSI_STATE_BRACKET:
-            if (c >= '0' && c <= '9') {
+            if (c == '?') {
+                ansi_ctx.params[ansi_ctx.param_pos++] = c;
+            } else if (c >= '0' && c <= '9') {
                 ansi_ctx.state = ANSI_STATE_PARAMETER;
                 ansi_ctx.params[ansi_ctx.param_pos++] = c;
             } else if (c == ';') {
@@ -149,6 +151,26 @@ bool ansi_is_enabled(void) {
 // Handle escape sequence
 void ansi_handle_escape_sequence(const char* params, size_t count, char cmd) {
     if (count == 0) return;
+
+    // Handle private mode sequences (e.g., ?25l, ?25h)
+    if (params[0] == '?') {
+        int priv_value = 0;
+        for (size_t i = 1; i < count; i++) {
+            if (params[i] >= '0' && params[i] <= '9') {
+                priv_value = priv_value * 10 + (params[i] - '0');
+            }
+        }
+        if (priv_value == 25) {
+            if (cmd == 'l') {
+                // Hide cursor
+                vga_set_cursor_visible(false); // Implement this in your VGA code
+            } else if (cmd == 'h') {
+                // Show cursor
+                vga_set_cursor_visible(true); // Implement this in your VGA code
+            }
+            return;
+        }
+    }
 
     // Parse parameters
     int values[16] = {0};

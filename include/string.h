@@ -2,6 +2,7 @@
 #define STRING_H
 
 #include <stddef.h>
+#include <stdarg.h>
 
 // Convert integer to string in the given base
 char* itoa(int value, char* str, int base);
@@ -20,5 +21,9 @@ void* memset(void* dest, int val, size_t count);
 
 // Move memory from one location to another
 void* memmove(void* dest, const void* src, size_t n);
+
+// Minimal vsnprintf and snprintf
+int vsnprintf(char* str, size_t size, const char* format, va_list ap);
+int snprintf(char* str, size_t size, const char* format, ...);
 
 #endif // STRING_H 
