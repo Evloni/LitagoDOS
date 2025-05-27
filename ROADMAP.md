@@ -108,6 +108,13 @@
   - [x] Cursor movement
   - [x] Debug output system
   - [x] Tab Completion
+  - [x] ANSI Escape Sequence Support
+    - [x] Basic cursor movement
+    - [x] Text colors and attributes
+    - [x] Screen clearing
+    - [x] Cursor positioning
+    - [x] Line movement
+    - [x] Cursor save/restore
 - [x] Add basic text editor
   - [x] Line editing
   - [x] File saving/loading

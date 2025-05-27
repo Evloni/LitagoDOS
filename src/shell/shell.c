@@ -44,7 +44,7 @@ static int cmd_index = 0;
 static const char* builtin_commands[] = {
     "help", "ls", "cat", "echo", "shutdown", "reboot", "memtest",
     "memtest2", "memstats", "syscall", "version", "progtest",
-    "mkfile", "rm", "clear", "edit"
+    "mkfile", "rm", "clear", "edit", "cursortest"
 };
 static const int num_builtin_commands = sizeof(builtin_commands) / sizeof(builtin_commands[0]);
 
@@ -104,24 +104,50 @@ static const char* find_closest_command(const char* input) {
 }
 
 void draw_header() {
-    terminal_setcolor(HEADER_COLOR);
-    terminal_set_cursor(2, 1);
-    terminal_writestring("+------------------------------------------------------------------+");
-    terminal_set_cursor(2, 2);
-    terminal_writestring("|                                                                  |");
-    terminal_set_cursor(2, 3);
-    terminal_writestring("|                    Litago Operating System                       |");
-    terminal_set_cursor(2, 4);
-    terminal_writestring("|                                                                  |");
-    terminal_set_cursor(2, 5);
-    terminal_writestring("+------------------------------------------------------------------+");
-    terminal_writestring("\n  Type 'help' for a list of commands\n");
+    if (ansi_is_enabled()) {
+        // Use ANSI escape sequences for colors
+        terminal_writestring("\x1B[36m");  // Cyan for header
+        terminal_set_cursor(2, 1);
+        terminal_writestring("+------------------------------------------------------------------+");
+        terminal_set_cursor(2, 2);
+        terminal_writestring("|                                                                  |");
+        terminal_set_cursor(2, 3);
+        terminal_writestring("|                    Litago Operating System                       |");
+        terminal_set_cursor(2, 4);
+        terminal_writestring("|                                                                  |");
+        terminal_set_cursor(2, 5);
+        terminal_writestring("+------------------------------------------------------------------+");
+        terminal_writestring("\x1B[0m");  // Reset colors
+        terminal_writestring("\n  Type 'help' for a list of commands\n");
+    } else {
+        // Use VGA colors directly
+        terminal_setcolor(HEADER_COLOR);
+        terminal_set_cursor(2, 1);
+        terminal_writestring("+------------------------------------------------------------------+");
+        terminal_set_cursor(2, 2);
+        terminal_writestring("|                                                                  |");
+        terminal_set_cursor(2, 3);
+        terminal_writestring("|                    Litago Operating System                       |");
+        terminal_set_cursor(2, 4);
+        terminal_writestring("|                                                                  |");
+        terminal_set_cursor(2, 5);
+        terminal_writestring("+------------------------------------------------------------------+");
+        terminal_writestring("\n  Type 'help' for a list of commands\n");
+    }
 }
 
 void draw_prompt() {
-    terminal_setcolor(PROMPT_COLOR);
-    terminal_writestring("\n[litago] ");
-    terminal_setcolor(TEXT_COLOR);
+    if (ansi_is_enabled()) {
+        // Use ANSI escape sequences for colors
+        terminal_writestring("\x1B[32m");  // Green for prompt
+        terminal_writestring("\n[litago] ");
+        terminal_writestring("\x1B[37m");  // White for text
+    } else {
+        // Use VGA colors directly
+        terminal_setcolor(PROMPT_COLOR);
+        terminal_writestring("\n[litago] ");
+        terminal_setcolor(TEXT_COLOR);
+    }
     
     // Store the current cursor position after drawing the prompt
     terminal_get_cursor(&prompt_x, &prompt_y);
@@ -283,12 +309,7 @@ static void handle_tab_completion(void) {
     } else if (num_completions == 1) {
         // Single completion - complete it
         // Clear current line
-        while (cmd_index > 0) {
-            terminal_putchar('\b');
-            terminal_putchar(' ');
-            terminal_putchar('\b');
-            cmd_index--;
-        }
+        clear_input_line(cmd_index);
         
         // Copy completion to buffer
         strcpy(cmd_buffer, completions[0]);
@@ -310,14 +331,8 @@ static void handle_tab_completion(void) {
         draw_prompt();
         
         // Clear and redraw the command
-        while (cmd_index > 0) {
-            terminal_putchar('\b');
-            terminal_putchar(' '); 
-            terminal_putchar('\b');
-            cmd_index--;
-        }
-        terminal_writestring(cmd_buffer);
-        cmd_index = strlen(cmd_buffer);
+        clear_input_line(cmd_index);
+        cmd_index = 0;
         
         // Update cursor position
         terminal_get_cursor(&prompt_x, &prompt_y);
@@ -386,6 +401,86 @@ static void handle_command(const char* command) {
         terminal_writestring("  rm <file>      - Remove a file\n");
         terminal_writestring("  clear          - Clear the screen\n");
         terminal_writestring("  edit <file>    - Edit a file\n");
+        terminal_writestring("  cursortest     - Test ANSI cursor movement\n");
+    } else if (strcmp(cmd_name, "cursortest") == 0) {
+        ansi_set_enabled(true);
+        // Test ANSI cursor movement
+        terminal_writestring("\nTesting ANSI cursor movement:\n");
+        terminal_writestring("Press any key to continue each test...\n\n");
+
+        terminal_writestring("\x1B[31mRed\x1B[0m Normal\n");
+        terminal_writestring("\x1B[1mBold\x1B[0m Normal\n");
+        terminal_writestring("\x1B[4mUnderline\x1B[0m Normal\n");
+        terminal_writestring("\x1B[32;44mGreen on Blue\x1B[0m Normal\n");
+        
+        // 1. Basic cursor movement
+        terminal_writestring("1. Basic cursor movement:\n");
+        terminal_writestring("Right 5: ");
+        terminal_writestring("\x1B[5C");
+        terminal_writestring("X\n");
+        terminal_writestring("Left 3: ");
+        terminal_writestring("\x1B[3D");
+        terminal_writestring("Y\n");
+        terminal_writestring("Up 2: ");
+        terminal_writestring("\x1B[2A");
+        terminal_writestring("Z\n");
+        terminal_writestring("Down 1: ");
+        terminal_writestring("\x1B[1B");
+        terminal_writestring("W\n");
+        keyboard_getchar();  // Wait for key press
+        terminal_writestring("\n");
+        
+        // 2. Line movement
+        terminal_writestring("2. Line movement:\n");
+        terminal_writestring("Next line: ");
+        terminal_writestring("\x1B[1E");
+        terminal_writestring("NEXT\n");
+        terminal_writestring("Prev line: ");
+        terminal_writestring("\x1B[1F");
+        terminal_writestring("PREV\n");
+        keyboard_getchar();  // Wait for key press
+        terminal_writestring("\n");
+        
+        // 3. Horizontal positioning
+        terminal_writestring("3. Horizontal positioning:\n");
+        terminal_writestring("Col 10: ");
+        terminal_writestring("\x1B[10G");
+        terminal_writestring("COL10\n");
+        keyboard_getchar();  // Wait for key press
+        terminal_writestring("\n");
+        
+        // 4. Absolute positioning
+        terminal_writestring("4. Absolute positioning:\n");
+        terminal_writestring("Pos (5,5): ");
+        terminal_writestring("\x1B[5;5H");
+        terminal_writestring("POS\n");
+        keyboard_getchar();  // Wait for key press
+        terminal_writestring("\n");
+        
+        // 5. Cursor save/restore
+        terminal_writestring("5. Cursor save/restore:\n");
+        terminal_writestring("Save pos -> Move -> Restore: ");
+        terminal_writestring("\x1B[s");
+        terminal_writestring("\x1B[10;10H");
+        terminal_writestring("\x1B[u");
+        terminal_writestring("RESTORED\n");
+        keyboard_getchar();  // Wait for key press
+        terminal_writestring("\n");
+        
+        // 6. Screen clearing
+        terminal_writestring("6. Screen clearing:\n");
+        terminal_writestring("Clear line: ");
+        terminal_writestring("\x1B[K");
+        terminal_writestring("CLEARED\n");
+        terminal_writestring("Clear screen: ");
+        terminal_writestring("\x1B[J");
+        terminal_writestring("CLEARED\n");
+        
+        terminal_writestring("\nTest complete. Press any key to return to shell.\n");
+        keyboard_getchar();  // Wait for key press
+        terminal_writestring("\x1B[0m"); // Reset all attributes and colors to default
+        ansi_set_enabled(false);
+
     } else if (strcmp(cmd_name, "shutdown") == 0) {
         terminal_writestring("Shutting down...\n");
         shutdown();
@@ -497,6 +592,7 @@ void shell_init(void) {
     history_count = 0;
     history_index = -1;  // Start at -1 to indicate no history position
     cmd_index = 0;
+    ansi_set_enabled(false);
     
     draw_header();
 }
@@ -533,12 +629,7 @@ void shell_start(void) {
                         case 'A':  // Up arrow - previous command
                             if (history_count > 0) {
                                 // Clear current line
-                                while (cmd_index > 0) {
-                                    terminal_putchar('\b');
-                                    terminal_putchar(' ');
-                                    terminal_putchar('\b');
-                                    cmd_index--;
-                                }
+                                clear_input_line(cmd_index);
                                 
                                 // Move to previous command in history
                                 if (history_index == -1) {
@@ -559,14 +650,9 @@ void shell_start(void) {
                             break;
                         case 'B':  // Down arrow - next command
                             if (history_index != -1) {
-                                // Clear current line
-                                while (cmd_index > 0) {
-                                    terminal_putchar('\b');
-                                    terminal_putchar(' ');
-                                    terminal_putchar('\b');
-                                    cmd_index--;
-                                }
-                                
+                                int prev_len = cmd_index;
+                                clear_input_line(cmd_index);
+                                cmd_index = 0;
                                 // Move to next command in history
                                 if (history_index < history_count - 1) {
                                     history_index++;
@@ -575,11 +661,18 @@ void shell_start(void) {
                                     history_index = -1;
                                     cmd_buffer[0] = '\0';
                                 }
-                                
-                                // Update display
                                 cmd_index = strlen(cmd_buffer);
                                 terminal_writestring(cmd_buffer);
-                                // Update cursor position
+                                // If the new command is shorter, overwrite the rest with spaces
+                                for (int i = cmd_index; i < prev_len; i++) {
+                                    terminal_putchar(' ');
+                                }
+                                // Move cursor back to end of new command
+                                for (int i = cmd_index; i < prev_len; i++) {
+                                    if (terminal_column > 0) terminal_column--;
+                                    else if (terminal_row > 0) { terminal_row--; terminal_column = VGA_WIDTH - 1; }
+                                    terminal_update_cursor();
+                                }
                                 terminal_get_cursor(&prompt_x, &prompt_y);
                             }
                             break;
@@ -590,11 +683,17 @@ void shell_start(void) {
                 if (cmd_index > 0) {
                     cmd_index--;
                     cmd_buffer[cmd_index] = '\0';
-                    terminal_putchar('\b');
-                    terminal_putchar(' ');
-                    terminal_putchar('\b');
-                    // Update cursor position after backspace
-                    terminal_get_cursor(&prompt_x, &prompt_y);
+                    // Move cursor left
+                    if (terminal_column > 0) {
+                        terminal_column--;
+                    } else if (terminal_row > 0) {
+                        terminal_row--;
+                        terminal_column = VGA_WIDTH - 1;
+                    }
+                    terminal_update_cursor();
+                    // Erase character
+                    terminal_putentryat(' ', vga_entry_color(TEXT_COLOR, VGA_COLOR_BLACK), terminal_column, terminal_row);
+                    terminal_update_cursor();
                 }
             }
             else if (key == '\n') {  // Enter
@@ -629,5 +728,26 @@ void shell_start(void) {
         // Execute command
         handle_command(cmd_buffer);
     }
+}
+
+// Add this helper function near the top (after includes and globals)
+void clear_input_line(int length) {
+    // Move cursor to the start of the input line
+    while (length > 0) {
+        if (terminal_column > 0) {
+            terminal_column--;
+        } else if (terminal_row > 0) {
+            terminal_row--;
+            terminal_column = VGA_WIDTH - 1;
+        }
+        terminal_update_cursor();
+        length--;
+    }
+    // Overwrite with spaces
+    for (int i = 0; i < length; i++) {
+        terminal_putentryat(' ', vga_entry_color(TEXT_COLOR, VGA_COLOR_BLACK), terminal_column + i, terminal_row);
+    }
+    // Move cursor back to start
+    terminal_update_cursor();
 }
 

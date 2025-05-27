@@ -1,10 +1,8 @@
 # Build output
 /build/
-/isodir/*.
+/isodir/
 *.o
 *.obj
-*.bin
-*.iso
 *.elf
 *.map
 *.img
@@ -13,6 +11,7 @@
 *.a
 *.so
 *.mod.c
+*.iso
 
 # Editor files
 *~
@@ -28,13 +27,15 @@
 isodir/
 
 # Binary files
-kernel.bin
-grub.cfg
 *.bin
 *.exe
 *.dll
 *.sys
 *.drv
+
+# OS-specific binaries
+kernel.bin
+grub.cfg
 
 # Other
 *.d

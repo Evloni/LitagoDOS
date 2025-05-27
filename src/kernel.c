@@ -51,11 +51,15 @@ struct module {
 };
 
 void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
-	// Clear screen first
+	// Initialize terminal first
 	terminal_initialize();
 	terminal_clear();
 	terminal_setcolor(VGA_COLOR_WHITE);
+	terminal_writestring("Terminal initialized\n");
 
+	// Enable ANSI support explicitly
+	ansi_set_enabled(true);
+	terminal_writestring("ANSI support enabled\n");
 
 	// Display version information
 	const struct version_info* info = get_version_info();

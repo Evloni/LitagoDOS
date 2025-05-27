@@ -82,6 +82,10 @@ SYSCALL_ASM_OBJ = $(BUILD_DIR)/syscall.o
 SYSCALL_C = $(SRC_DIR)/syscall/syscall.c
 SYSCALL_C_OBJ = $(BUILD_DIR)/syscall_c.o
 
+# ANSI support files
+ANSI_C = $(SRC_DIR)/ansi.c
+ANSI_OBJ = $(BUILD_DIR)/ansi.o
+
 # Version files
 VERSION_C = $(SRC_DIR)/version.c
 VERSION_OBJ = $(BUILD_DIR)/version.o
@@ -112,7 +116,8 @@ OBJS = $(BOOT_OBJ) $(KERNEL_OBJ) $(VGA_OBJ) $(IO_OBJ) $(IDT_ASM_OBJ) $(IDT_C_OBJ
        $(GDT_C_OBJ) $(VGA_DRIVER_OBJ) $(KEYBOARD_DRIVER_OBJ) $(TIMER_DRIVER_OBJ) \
        $(STRING_OBJ) $(SHELL_OBJ) $(PMM_OBJ) $(MEMORY_MAP_OBJ) $(HEAP_OBJ) $(STDLIB_OBJ) $(LIBGCC_OBJ) \
        $(TEST_OBJ) $(TEST2_OBJ) $(SYSCALL_TEST_OBJ) $(SYSCALL_ASM_OBJ) $(SYSCALL_C_OBJ) \
-       $(VERSION_OBJ) $(FAT16_OBJ) $(ATA_OBJ) $(PROGRAM_OBJ) $(EDITOR_OBJ) $(ISO_FS_OBJ) $(ISO_FS_TEST_OBJ)
+       $(VERSION_OBJ) $(FAT16_OBJ) $(ATA_OBJ) $(PROGRAM_OBJ) $(EDITOR_OBJ) $(ISO_FS_OBJ) $(ISO_FS_TEST_OBJ) \
+       $(ANSI_OBJ)
 
 # Default target
 .PHONY: all
@@ -230,6 +235,11 @@ $(SYSCALL_C_OBJ): $(SYSCALL_C) | $(BUILD_DIR)
 # Compile syscall test
 $(SYSCALL_TEST_OBJ): $(SYSCALL_TEST_C) | $(BUILD_DIR)
 	@echo "Compiling syscall test..."
+	$(CC) $(CFLAGS) $< -o $@
+
+# Compile ANSI support
+$(ANSI_OBJ): $(ANSI_C) | $(BUILD_DIR)
+	@echo "Compiling ANSI support..."
 	$(CC) $(CFLAGS) $< -o $@
 
 # Compile version

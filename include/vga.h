@@ -8,6 +8,10 @@
 static const size_t VGA_WIDTH = 80;
 static const size_t VGA_HEIGHT = 25;
 
+// External terminal position variables
+extern size_t terminal_row;
+extern size_t terminal_column;
+
 // VGA graphics mode constants
 #define VGA_GRAPHICS_WIDTH 320
 #define VGA_GRAPHICS_HEIGHT 200
@@ -43,6 +47,7 @@ enum vga_mode {
 // Function declarations
 void terminal_initialize(void);
 void terminal_setcolor(uint8_t color);
+uint8_t terminal_getcolor(void);
 void terminal_putentryat(char c, uint8_t color, size_t x, size_t y);
 void terminal_putchar(char c);
 void terminal_write(const char* data, size_t size);
@@ -50,8 +55,12 @@ void terminal_writestring(const char* data);
 void terminal_clear(void);
 void terminal_set_cursor(size_t x, size_t y);
 void terminal_get_cursor(size_t* x, size_t* y);
+void terminal_save_cursor(void);
+void terminal_restore_cursor(void);
 void terminal_writeint(int num);
 void terminal_writehex(uint32_t num);
+void terminal_scroll(void);
+void terminal_update_cursor(void);
 
 // Function declarations for graphics mode
 void vga_set_mode(enum vga_mode mode);
@@ -67,7 +76,7 @@ static inline uint8_t vga_entry_color(enum vga_color fg, enum vga_color bg) {
 }
 
 static inline uint16_t vga_entry(unsigned char uc, uint8_t color) {
-    return (uint16_t) uc | (uint16_t) color << 8;
+    return (uint16_t)uc | (uint16_t)color << 8;
 }
 
 #endif // VGA_H 

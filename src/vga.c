@@ -2,6 +2,7 @@
 #include "../include/io.h"
 #include "../include/keyboardDriver.h"
 #include "../include/string.h"
+#include "../include/ansi.h"
 #include <stddef.h>
 #include <stdint.h>
 
@@ -25,10 +26,14 @@ static uint16_t* const VGA_MEMORY = (uint16_t*)0xB8000;
 #define VGA_GRAPHICS_MEMORY ((uint8_t*)0xA0000)
 
 // Current cursor position
-static size_t terminal_row;
-static size_t terminal_column;
+size_t terminal_row;
+size_t terminal_column;
 static uint8_t terminal_color;
 static uint16_t* terminal_buffer;
+
+// Saved cursor position for ANSI escape sequences
+static size_t saved_row;
+static size_t saved_column;
 
 // Input buffer for string input
 #define INPUT_BUFFER_SIZE 256
@@ -53,6 +58,9 @@ void terminal_initialize(void) {
     
     // Move cursor to start position
     terminal_set_cursor(0, 0);
+    
+    // Initialize ANSI support
+    ansi_init();
 }
 
 // Set cursor position
@@ -75,9 +83,25 @@ void terminal_get_cursor(size_t* x, size_t* y) {
     *y = terminal_row;
 }
 
+// Save cursor position
+void terminal_save_cursor(void) {
+    saved_row = terminal_row;
+    saved_column = terminal_column;
+}
+
+// Restore cursor position
+void terminal_restore_cursor(void) {
+    terminal_set_cursor(saved_column, saved_row);
+}
+
 // Set the terminal color
 void terminal_setcolor(uint8_t color) {
     terminal_color = color;
+}
+
+// Get the current terminal color
+uint8_t terminal_getcolor(void) {
+    return terminal_color;
 }
 
 // Put a character at a specific position
@@ -87,7 +111,7 @@ void terminal_putentryat(char c, uint8_t color, size_t x, size_t y) {
 }
 
 // Scroll the terminal up by one line
-static void terminal_scroll(void) {
+void terminal_scroll(void) {
     // Move all lines up by one
     for (size_t y = 0; y < VGA_HEIGHT - 1; y++) {
         for (size_t x = 0; x < VGA_WIDTH; x++) {
@@ -106,6 +130,13 @@ static void terminal_scroll(void) {
 
 // Put a character at the current position
 void terminal_putchar(char c) {
+    // Process ANSI escape sequences
+    if (ansi_is_enabled()) {
+        ansi_process_char(c);
+        return;
+    }
+
+    // Handle special characters
     if (c == '\b') {
         if (terminal_column > 0) {
             terminal_column--;
@@ -121,29 +152,38 @@ void terminal_putchar(char c) {
             terminal_row = VGA_HEIGHT - 1;
         }
         terminal_update_cursor();
-    } else {
-        terminal_putentryat(c, terminal_color, terminal_column, terminal_row);
-        if (++terminal_column == VGA_WIDTH) {
-            terminal_column = 0;
-            if (++terminal_row == VGA_HEIGHT) {
-                terminal_scroll();
-                terminal_row = VGA_HEIGHT - 1;
-            }
-        }
+        return;
+    } else if (c == '\r') {
+        // Handle carriage return
+        terminal_column = 0;
         terminal_update_cursor();
+        return;
     }
+
+    // Handle normal characters
+    terminal_putentryat(c, terminal_color, terminal_column, terminal_row);
+    if (++terminal_column == VGA_WIDTH) {
+        terminal_column = 0;
+        if (++terminal_row == VGA_HEIGHT) {
+            terminal_scroll();
+            terminal_row = VGA_HEIGHT - 1;
+        }
+    }
+    terminal_update_cursor();
 }
 
 // Write a string of a specific size
 void terminal_write(const char* data, size_t size) {
-    for (size_t i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++) {
         terminal_putchar(data[i]);
+    }
 }
 
 // Write a null-terminated string
 void terminal_writestring(const char* data) {
-    for (size_t i = 0; data[i] != '\0'; i++)
+    for (size_t i = 0; data[i] != '\0'; i++) {
         terminal_putchar(data[i]);
+    }
 }
 
 // Update the cursor position
