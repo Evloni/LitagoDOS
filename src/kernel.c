@@ -51,16 +51,57 @@ struct module {
 	uint32_t reserved;
 };
 
+// Helper function for animated dots
+void delay_animation(int dots) {
+	for (int i = 0; i < dots; i++) {
+		terminal_writestring(".");
+		for (volatile int j = 0; j < 100000000; j++); // Adjust for your speed
+	}
+}
+
 void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
-	// Initialize terminal first
 	terminal_initialize();
 	terminal_clear();
-	terminal_setcolor(VGA_COLOR_WHITE);
-	terminal_writestring("Terminal initialized\n");
+	if (ansi_is_enabled()) {
+		terminal_writestring("\x1B[37m"); // Light grey
+	} else {
+		terminal_setcolor(VGA_COLOR_LIGHT_GREY);
+	}
 
-	// Enable ANSI support explicitly
-	ansi_set_enabled(true);
-	terminal_writestring("ANSI support enabled\n");
+	terminal_writestring("Litago Version ");
+	terminal_writestring(VERSION_STRING);
+	terminal_writestring("\nBuild: ");
+	terminal_writestring(BUILD_DATE);
+	terminal_writestring(" ");
+	terminal_writestring(BUILD_TIME);
+	terminal_writestring("\n\n");
+
+	// POST checks
+	terminal_writestring("Performing Power-On Self Test\n");
+	terminal_writestring("Memory Test: ");
+	delay_animation(3); // Print dots with delay
+	if (ansi_is_enabled()) {
+		terminal_writestring("\x1B[32mOK\x1B[37m");
+	} else {
+		terminal_setcolor(VGA_COLOR_GREEN);
+		terminal_writestring("OK");
+		terminal_setcolor(VGA_COLOR_LIGHT_GREY);
+	}
+	terminal_writestring("\n");
+
+	terminal_writestring("Detecting drives: ");
+	delay_animation(2);
+	if (ansi_is_enabled()) {
+		terminal_writestring("\x1B[32mOK\x1B[37m");
+	} else {
+		terminal_setcolor(VGA_COLOR_GREEN);
+		terminal_writestring("OK");
+		terminal_setcolor(VGA_COLOR_LIGHT_GREY);
+	}
+	terminal_writestring("\n");
+
+	terminal_writestring("Initializing kernel subsystems\n");
+	delay_animation(2);
 
 	// Display version information
 	const struct version_info* info = get_version_info();
@@ -71,19 +112,60 @@ void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 	terminal_writestring(" ");
 	terminal_writestring(info->build_time);
 	terminal_writestring("\n\n");
-	
+
+	// Enable ANSI support explicitly
+	ansi_set_enabled(true);
+	if (ansi_is_enabled()) {
+		terminal_writestring("\x1B[32mANSI support enabled\x1B[37m");
+	} else {
+		terminal_setcolor(VGA_COLOR_GREEN);
+		terminal_writestring("ANSI support enabled");
+		terminal_setcolor(VGA_COLOR_LIGHT_GREY);
+	}
+	terminal_writestring("\n");
+
 	terminal_writestring("Initializing kernel...\n\n");
 
 	// Initialize GDT
+	terminal_writestring("GDT: ");
+	delay_animation(1);
 	gdt_init();
+	if (ansi_is_enabled()) {
+		terminal_writestring("\x1B[32mOK\x1B[37m");
+	} else {
+		terminal_setcolor(VGA_COLOR_GREEN);
+		terminal_writestring("OK");
+		terminal_setcolor(VGA_COLOR_LIGHT_GREY);
+	}
+	terminal_writestring("\n");
 
 	// Initialize IDT
+	terminal_writestring("IDT: ");
+	delay_animation(1);
 	idt_init();
+	if (ansi_is_enabled()) {
+		terminal_writestring("\x1B[32mOK\x1B[37m");
+	} else {
+		terminal_setcolor(VGA_COLOR_GREEN);
+		terminal_writestring("OK");
+		terminal_setcolor(VGA_COLOR_LIGHT_GREY);
+	}
+	terminal_writestring("\n");
 
 	// Initialize memory manager
+	terminal_writestring("Memory Manager: ");
+	delay_animation(1);
 	memory_map_init(multiboot_magic, multiboot_info);
 	pmm_init();
 	heap_init();  // Initialize heap after PMM
+	if (ansi_is_enabled()) {
+		terminal_writestring("\x1B[32mOK\x1B[37m");
+	} else {
+		terminal_setcolor(VGA_COLOR_GREEN);
+		terminal_writestring("OK");
+		terminal_setcolor(VGA_COLOR_LIGHT_GREY);
+	}
+	terminal_writestring("\n");
 
 	// Get module information from multiboot structure
 	if (multiboot_magic == MULTIBOOT_MAGIC) {
@@ -91,48 +173,107 @@ void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 		if (mb->flags & (1 << 3)) {  // Check if modules are present
 			struct module* mods = (struct module*)mb->mods_addr;
 			if (mb->mods_count > 0) {
+				terminal_writestring("FAT16 image: ");
+				delay_animation(1);
 				// The first module should be our FAT16 image
-				terminal_writestring("Found FAT16 image at ");
 				char addr_str[16];
 				itoa(mods[0].mod_start, addr_str, 16);
 				terminal_writestring(addr_str);
-				terminal_writestring("\n");
-				
+				terminal_writestring(" ");
 				// Set the base address for the ISO filesystem
 				iso_fs_set_base(mods[0].mod_start);
+				if (ansi_is_enabled()) {
+					terminal_writestring("\x1B[32mOK\x1B[37m");
+				} else {
+					terminal_setcolor(VGA_COLOR_GREEN);
+					terminal_writestring("OK");
+					terminal_setcolor(VGA_COLOR_LIGHT_GREY);
+				}
+				terminal_writestring("\n");
 			}
 		}
 	}
 
 	// Initialize timer driver
+	terminal_writestring("Timer driver: ");
+	delay_animation(1);
 	if (!timer_driver_init()) {
-		terminal_setcolor(VGA_COLOR_RED);
-		terminal_writestring("Failed to initialize timer driver\n");
+		if (ansi_is_enabled()) {
+			terminal_writestring("\x1B[31mFAILED\x1B[37m");
+		} else {
+			terminal_setcolor(VGA_COLOR_RED);
+			terminal_writestring("FAILED");
+			terminal_setcolor(VGA_COLOR_LIGHT_GREY);
+		}
+		terminal_writestring("\n");
 		return;
 	}
+	if (ansi_is_enabled()) {
+		terminal_writestring("\x1B[32mOK\x1B[37m");
+	} else {
+		terminal_setcolor(VGA_COLOR_GREEN);
+		terminal_writestring("OK");
+		terminal_setcolor(VGA_COLOR_LIGHT_GREY);
+	}
+	terminal_writestring("\n");
 
 	// Initialize FAT16 filesystem
+	terminal_writestring("FAT16 filesystem: ");
+	delay_animation(1);
 	if (!fat16_init()) {
-		terminal_setcolor(VGA_COLOR_RED);
-		terminal_writestring("Failed to initialize FAT16 filesystem\n");
+		if (ansi_is_enabled()) {
+			terminal_writestring("\x1B[31mFAILED\x1B[37m");
+		} else {
+			terminal_setcolor(VGA_COLOR_RED);
+			terminal_writestring("FAILED");
+			terminal_setcolor(VGA_COLOR_LIGHT_GREY);
+		}
+		terminal_writestring("\n");
 		return;
 	}
+	if (ansi_is_enabled()) {
+		terminal_writestring("\x1B[32mOK\x1B[37m");
+	} else {
+		terminal_setcolor(VGA_COLOR_GREEN);
+		terminal_writestring("OK");
+		terminal_setcolor(VGA_COLOR_LIGHT_GREY);
+	}
+	terminal_writestring("\n");
 
 	// Initialize keyboard
+	terminal_writestring("Keyboard: ");
+	delay_animation(1);
 	if (!keyboard_init()) {
-		terminal_setcolor(VGA_COLOR_RED);
-		terminal_writestring("Failed to initialize keyboard\n");
+		if (ansi_is_enabled()) {
+			terminal_writestring("\x1B[31mFAILED\x1B[37m");
+		} else {
+			terminal_setcolor(VGA_COLOR_RED);
+			terminal_writestring("FAILED");
+			terminal_setcolor(VGA_COLOR_LIGHT_GREY);
+		}
+		terminal_writestring("\n");
 		return;
 	}
+	if (ansi_is_enabled()) {
+		terminal_writestring("\x1B[32mOK\x1B[37m");
+	} else {
+		terminal_setcolor(VGA_COLOR_GREEN);
+		terminal_writestring("OK");
+		terminal_setcolor(VGA_COLOR_LIGHT_GREY);
+	}
+	terminal_writestring("\n");
 
 	// Show system ready message
-	terminal_setcolor(VGA_COLOR_GREEN);
-	terminal_writestring("System initialized successfully!\n");
-	terminal_setcolor(VGA_COLOR_WHITE);
+	if (ansi_is_enabled()) {
+		terminal_writestring("\n\x1B[32mSystem initialized successfully!\x1B[37m\n");
+	} else {
+		terminal_setcolor(VGA_COLOR_GREEN);
+		terminal_writestring("\nSystem initialized successfully!\n");
+		terminal_setcolor(VGA_COLOR_LIGHT_GREY);
+	}
 
 	// Start shell
-	terminal_writestring("Starting shell...\n");
+	terminal_writestring("\nStarting shell...\n");
 	show_progress_bar(40, 40);  // 40-character wide progress bar
-	terminal_writestring("\n");
 	shell_start();
 }
