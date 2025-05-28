@@ -22,4 +22,7 @@ size_t pmm_get_total_pages(void);
 // Get the number of free pages
 size_t pmm_get_free_pages(void);
 
+// Map physical address to virtual address
+void* pmm_map_physical_to_virtual(uint32_t physical_addr);
+
 #endif // PMM_H 

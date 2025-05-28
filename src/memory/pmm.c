@@ -222,4 +222,11 @@ size_t pmm_get_total_pages(void) {
 
 size_t pmm_get_free_pages(void) {
     return free_pages;
+}
+
+// Map physical address to virtual address
+void* pmm_map_physical_to_virtual(uint32_t physical_addr) {
+    // For now, we'll use a simple 1:1 mapping
+    // In a real system, this would use page tables
+    return (void*)physical_addr;
 } 

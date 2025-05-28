@@ -2,8 +2,19 @@ section .multiboot
 align 4
     ; Multiboot header
     dd 0x1BADB002              ; Magic number
-    dd 0x00                    ; Flags (0 = no special features)
-    dd -(0x1BADB002 + 0x00)    ; Checksum
+    dd 0x04                    ; Flags (0x04 = VBE mode)
+    dd -(0x1BADB002 + 0x04)    ; Checksum
+
+    ; VBE information
+    dd 0                       ; Header address
+    dd 0                       ; Load address
+    dd 0                       ; Load end address
+    dd 0                       ; BSS end address
+    dd 0                       ; Entry address
+    dd 0                       ; Mode type
+    dd 1024                    ; Width
+    dd 768                     ; Height
+    dd 32                      ; Depth
 
 section .bss
 align 16
