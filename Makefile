@@ -310,6 +310,7 @@ $(ISO_IMAGE): $(KERNEL_BIN) | $(BUILD_DIR)
 	@echo "Creating ISO..."
 	cp $(KERNEL_BIN) $(ISO_BOOT_DIR)/kernel.bin
 	cp grub.cfg $(ISO_GRUB_DIR)/grub.cfg
+	cp fat16.img $(ISO_DIR)/fat16.img
 	grub-mkrescue -o $@ $(ISO_DIR)
 
 # Run in QEMU
