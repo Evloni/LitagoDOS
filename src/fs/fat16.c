@@ -128,6 +128,10 @@ bool fat16_read_root_dir(void) {
         return false;
     }
 
+    // Print header
+    terminal_writestring("Name           Size    Type\n");
+    terminal_writestring("----------------------------------------\n");
+
     for (int i = 0; i < boot_sector.root_entries; i++) {
         // End of directory
         if (root_dir[i].filename[0] == 0x00) break;
@@ -140,42 +144,46 @@ bool fat16_read_root_dir(void) {
 
         // Format filename
         char name[13] = {0};
-        int name_len = 8, ext_len = 3;
-        while (name_len > 0 && root_dir[i].filename[name_len - 1] == ' ') name_len--;
-        int idx = 0;
-        for (int j = 0; j < name_len; j++) name[idx++] = root_dir[i].filename[j];
-        // Extension
-        while (ext_len > 0 && root_dir[i].extension[ext_len - 1] == ' ') ext_len--;
-        if (ext_len > 0) {
-            name[idx++] = '.';
-            for (int j = 0; j < ext_len; j++) name[idx++] = root_dir[i].extension[j];
+        int name_idx = 0;
+        for (int j = 0; j < 8; j++) {
+            if (root_dir[i].filename[j] != ' ') {
+                name[name_idx++] = root_dir[i].filename[j];
+            }
         }
-        name[idx] = '\0';
+        if (root_dir[i].extension[0] != ' ') {
+            name[name_idx++] = '.';
+            for (int j = 0; j < 3; j++) {
+                if (root_dir[i].extension[j] != ' ') {
+                    name[name_idx++] = root_dir[i].extension[j];
+                }
+            }
+        }
+        name[name_idx] = '\0';
 
-        // Print name, padded to 12 chars
-        int actual_name_len = strlen(name);
-        for (int s = actual_name_len; s < 12; s++) name[idx++] = ' ';
-        name[idx] = '\0';
+        // Print name, padded to 16 chars
+        terminal_writestring(name);
+        int name_len = strlen(name);
+        for (int s = name_len; s < 16; s++) {
+            terminal_putchar(' ');
+        }
 
-        // Print size or blank for directories, padded to 9 chars
+        // Print size or blank for directories
         if (root_dir[i].attributes & FAT16_ATTR_DIRECTORY) {
-            for (int s = 0; s < 9; s++) name[idx++] = ' ';
+            terminal_writestring("        ");
         } else {
             char size_str[16];
             itoa(root_dir[i].file_size, size_str, 10);
-            for (int s = strlen(size_str) + 6; s < 9; s++) name[idx++] = ' ';
+            terminal_writestring(size_str);
+            int size_len = strlen(size_str);
+            for (int s = size_len; s < 8; s++) {
+                terminal_putchar(' ');
+            }
         }
 
-        // Print type, centered in 8 chars
+        // Print type
         const char* type_str = get_file_type(&root_dir[i]);
-        int type_len = strlen(type_str);
-        int total_width = 8;
-        int left_pad = (total_width - type_len) / 2;
-        int right_pad = total_width - type_len - left_pad;
-        for (int s = 0; s < left_pad; s++) name[idx++] = ' ';
-        for (int s = 0; s < type_len; s++) name[idx++] = type_str[s];
-        for (int s = 0; s < right_pad; s++) name[idx++] = ' ';
-        name[idx] = '\0';
+        terminal_writestring(type_str);
+        terminal_putchar('\n');
     }
 
     free(root_dir);

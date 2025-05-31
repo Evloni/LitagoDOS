@@ -529,7 +529,12 @@ void editor_edit_command(const char* filename) {
     // Clean up when editor exits
     editor_free(&editor);
     
-    // Clear the screen
+    // Clear the screen and restore shell state
     vbe_clear_screen(0x000000);
     draw_header();
+    
+    // Reset cursor position to where the shell expects it
+    vbe_cursor_x = 0;
+    vbe_cursor_y = 125;  // Same as in shell_init
+    draw_prompt();
 }

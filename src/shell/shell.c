@@ -625,6 +625,18 @@ void shell_start(void) {
                 terminal_putchar('\n');
                 if (cmd_index > 0) {
                     cmd_buffer[cmd_index] = '\0';
+                    
+                    // Save command to history
+                    if (history_count < MAX_HISTORY) {
+                        strcpy(cmd_history[history_count++], cmd_buffer);
+                    } else {
+                        // Shift history up if we're at max capacity
+                        for (int i = 0; i < MAX_HISTORY - 1; i++) {
+                            strcpy(cmd_history[i], cmd_history[i + 1]);
+                        }
+                        strcpy(cmd_history[MAX_HISTORY - 1], cmd_buffer);
+                    }
+                    
                     handle_command(cmd_buffer);
                     cmd_index = 0;
                     memset(cmd_buffer, 0, MAX_CMD_LENGTH);
@@ -632,6 +644,66 @@ void shell_start(void) {
                 draw_prompt();
             } else if (c == '\t') {  // Tab
                 handle_tab_completion();
+            } else if (c == '\033') {  // Escape sequence start
+                // Read the next character
+                if (keyboard_buffer_has_data()) {
+                    char next = keyboard_getchar();
+                    if (next == '[') {  // ANSI escape sequence
+                        if (keyboard_buffer_has_data()) {
+                            char code = keyboard_getchar();
+                            if (code == 'A') {  // Up arrow
+                                if (history_count > 0) {
+                                    // Get current cursor position
+                                    int current_y = vbe_cursor_y;
+                                    
+                                    // Clear current line
+                                    clear_input_line(cmd_index);
+                                    
+                                    // Move up in history
+                                    if (history_index == -1) {
+                                        history_index = history_count - 1;
+                                    } else if (history_index > 0) {
+                                        history_index--;
+                                    }
+                                    
+                                    // Copy history entry to buffer
+                                    strcpy(cmd_buffer, cmd_history[history_index]);
+                                    cmd_index = strlen(cmd_buffer);
+                                    
+                                    // Display the command
+                                    vbe_draw_string(9 * 8, current_y, cmd_buffer, TEXT_COLOR, &font_8x16);
+                                    vbe_cursor_x = (9 + cmd_index) * 8;  // Update cursor position
+                                    vbe_cursor_y = current_y;
+                                }
+                            } else if (code == 'B') {  // Down arrow
+                                if (history_index != -1) {
+                                    // Get current cursor position
+                                    int current_y = vbe_cursor_y;
+                                    
+                                    // Clear current line
+                                    clear_input_line(cmd_index);
+                                    
+                                    // Move down in history
+                                    if (history_index < history_count - 1) {
+                                        history_index++;
+                                        strcpy(cmd_buffer, cmd_history[history_index]);
+                                    } else {
+                                        history_index = -1;
+                                        memset(cmd_buffer, 0, MAX_CMD_LENGTH);
+                                    }
+                                    
+                                    // Update display
+                                    cmd_index = strlen(cmd_buffer);
+                                    if (cmd_index > 0) {
+                                        vbe_draw_string(9 * 8, current_y, cmd_buffer, TEXT_COLOR, &font_8x16);
+                                        vbe_cursor_x = (9 + cmd_index) * 8;  // Update cursor position
+                                        vbe_cursor_y = current_y;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             } else if (c >= 32 && c <= 126) {  // Printable characters
                 if (cmd_index < MAX_CMD_LENGTH - 1) {
                     cmd_buffer[cmd_index++] = c;
@@ -647,22 +719,19 @@ void shell_start(void) {
 
 // Helper function to clear input line
 void clear_input_line(int length) {
+    // Get current cursor position
+    int current_x = vbe_cursor_x;
+    int current_y = vbe_cursor_y;
+    
     // Move cursor to the start of the input line
-    while (length > 0) {
-        if (prompt_x > 0) {
-            prompt_x--;
-        } else if (prompt_y > 0) {
-            prompt_y--;
-            prompt_x = VBE_WIDTH / 8 - 1;  // Assuming 8x16 font
-        }
-        terminal_update_cursor();
-        length--;
-    }
-    // Overwrite with spaces
-    for (int i = 0; i < length; i++) {
-        terminal_putentryat(' ', TEXT_COLOR, prompt_x + i, prompt_y);
-    }
-    // Move cursor back to start
-    terminal_update_cursor();
+    vbe_cursor_x = 9 * 8;  // Move to after the prompt
+    vbe_cursor_y = current_y;
+    
+    // Clear the entire line from prompt to end
+    vbe_draw_rect(vbe_cursor_x, vbe_cursor_y, VBE_WIDTH - vbe_cursor_x, font_8x16.height, 0x00000000);
+    
+    // Reset command buffer and index
+    memset(cmd_buffer, 0, MAX_CMD_LENGTH);
+    cmd_index = 0;
 }
 
