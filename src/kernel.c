@@ -15,6 +15,7 @@
 #include "../include/font_8x16.h"
 #include "../include/multiboot.h"
 #include "../include/drivers/vbe.h"
+#include "../include/utils/boot_animation.h"
 #include <stddef.h>
 
 // Multiboot magic number
@@ -146,8 +147,11 @@ void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 	// Show system ready message
 	terminal_writestring("System initialized successfully!\n");
 	
+	// Show boot animation
+	show_boot_animation();
+	
 	// Start shell
-	terminal_writestring("Starting shell...\n");
-	show_progress_bar(40, 10);  // 40-character wide progress bar
-	shell_start();
+	//terminal_writestring("Starting shell...\n");
+	//show_progress_bar(40, 10);  // 40-character wide progress bar
+	//shell_start();
 }

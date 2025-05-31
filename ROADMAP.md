@@ -32,6 +32,11 @@
   - [x] Cursor support
   - [x] Keyboard input handling
   - [x] Debug output system
+  - [x] Migrate to VBE (VESA BIOS Extensions)
+    - [x] High resolution graphics support
+    - [x] True color mode (32-bit)
+    - [x] Custom font rendering
+    - [x] Graphics primitives
 - [x] Implement basic system calls
 
 ## Phase 3: File System
@@ -50,6 +55,11 @@
   - [x] Command parser
   - [x] Command history with arrow key navigation
   - [x] Basic command execution
+- [x] Add boot animation
+  - [x] ASCII art logo
+  - [x] Animated cow
+  - [x] Loading bar
+  - [x] Version information display
 - [x] Create basic commands
   - [x] `ls` - List directory contents
   - [x] `cd` - Change directory
@@ -75,6 +85,11 @@
 ## Phase 6: Device Drivers
 - [x] Implement basic device drivers
   - [x] VGA driver
+  - [x] VBE driver
+    - [x] Mode setting
+    - [x] Double buffering
+    - [x] Graphics primitives
+    - [x] Font rendering
   - [x] Keyboard driver with arrow key support
   - [x] Disk driver (QEMU-attached FAT16 image)
   - [x] Timer driver
