@@ -1,6 +1,4 @@
 #include "../include/keyboardDriver.h"
-#include "../include/vga.h"
-#include "../include/vga_driver.h"
 #include "../include/io.h"
 #include "../include/idt.h"
 #include "../include/gdt.h"
@@ -13,9 +11,10 @@
 #include "../include/fs/fat16.h"
 #include "../include/drivers/iso_fs.h"
 #include "../include/utils/progress.h"
-#include "../include/vbe.h"
+#include "../include/drivers/vbe.h"
 #include "../include/font_8x16.h"
 #include "../include/multiboot.h"
+#include "../include/drivers/vbe.h"
 #include <stddef.h>
 
 // Multiboot magic number
@@ -30,63 +29,66 @@ struct module {
 };
 
 // Helper function for animated dots
-void delay_animation(int dots) {
-	for (int i = 0; i < dots; i++) {
-		vbe_draw_char(10, 10, '.', 0xFFFFFF, &font_8x16);
-		for (volatile int j = 0; j < 100000000; j++); // Adjust for your speed
-	}
+void delay_animation(int dots, int start_x, int y) {
+	for (volatile int j = 0; j < 100000000; j++); // Reduced from 100,000,000 to 1,000,000
 }
 
 void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 	// Initialize VBE first
-	vbe_init(multiboot_magic, multiboot_info);
+	vbe_initialize(multiboot_magic, multiboot_info);
 	
 	// Clear screen with black background
-	vbe_clear_screen(0x000000);
+	terminal_clear();
 	
 	// Display version information
-	vbe_draw_string(10, 10, "Litago Version", 0xFFFFFF, &font_8x16);
-	vbe_draw_string(130, 10, VERSION_STRING, 0xFFFFFF, &font_8x16);
-	vbe_draw_string(10, 30, "Build:", 0xFFFFFF, &font_8x16);
-	vbe_draw_string(64, 30, BUILD_DATE, 0xFFFFFF, &font_8x16);
-	vbe_draw_string(160, 30, BUILD_TIME, 0xFFFFFF, &font_8x16);
+	terminal_writestring("Litago Version ");
+	terminal_writestring(VERSION_STRING);
+	terminal_writestring(" Build: ");
+	terminal_writestring(BUILD_DATE);
+	terminal_writestring(" ");
+	terminal_writestring(BUILD_TIME);
+	terminal_writestring("\n");
 	
 	// POST checks
-	vbe_draw_string(10, 60, "Performing Power-On Self Test", 0xFFFFFF, &font_8x16);
+	terminal_writestring("Performing Power-On Self Test\n");
+	// Move cursor below header
+	vbe_cursor_x = 0;
+	vbe_cursor_y = 30; // 5 lines * 16px + a blank line
 	
 	// Memory Test
-	vbe_draw_string(10, 80, "Memory Test: ", 0xFFFFFF, &font_8x16);
-	delay_animation(3);
-	vbe_draw_string(120, 80, "OK", 0x00FF00, &font_8x16);
+	terminal_writestring("Memory Test: ");
+	delay_animation(3, 115, 80);
+	terminal_writestring_color("OK\n", 0x00FF00);
 	
 	// Drive Detection
-	vbe_draw_string(10, 100, "Detecting drives: ", 0xFFFFFF, &font_8x16);
-	delay_animation(2);
-	vbe_draw_string(150, 100, "OK", 0x00FF00, &font_8x16);
+	terminal_writestring("Detecting drives: ");
+	delay_animation(2, 150, 100);
+	terminal_writestring_color("OK\n", 0x00FF00);
 	
 	// Initialize kernel subsystems
-	vbe_draw_string(10, 120, "Initializing kernel subsystems", 0xFFFFFF, &font_8x16);
-	delay_animation(2);
+	terminal_writestring("Initializing kernel subsystems");
+	delay_animation(2, 250, 120);
+	terminal_writestring("\n");
 	
 	// Initialize GDT
-	vbe_draw_string(10, 140, "GDT: ", 0xFFFFFF, &font_8x16);
-	delay_animation(1);
+	terminal_writestring("GDT: ");
+	delay_animation(1, 50, 140);
 	gdt_init();
-	vbe_draw_string(50, 140, "OK", 0x00FF00, &font_8x16);
+	terminal_writestring_color("OK\n", 0x00FF00);
 	
 	// Initialize IDT
-	vbe_draw_string(10, 160, "IDT: ", 0xFFFFFF, &font_8x16);
-	delay_animation(1);
+	terminal_writestring("IDT: ");
+	delay_animation(1, 50, 160);
 	idt_init();
-	vbe_draw_string(50, 160, "OK", 0x00FF00, &font_8x16);
+	terminal_writestring_color("OK\n", 0x00FF00);
 	
 	// Initialize memory manager
-	vbe_draw_string(10, 180, "Memory Manager: ", 0xFFFFFF, &font_8x16);
-	delay_animation(1);
+	terminal_writestring("Memory Manager: ");
+	delay_animation(1, 155, 180);
 	memory_map_init(multiboot_magic, multiboot_info);
 	pmm_init();
 	heap_init();
-	vbe_draw_string(150, 180, "OK", 0x00FF00, &font_8x16);
+	terminal_writestring_color("OK\n", 0x00FF00);
 	
 	// Get module information from multiboot structure
 	if (multiboot_magic == MULTIBOOT_MAGIC) {
@@ -94,51 +96,58 @@ void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 		if (mb->flags & (1 << 3)) {  // Check if modules are present
 			struct module* mods = (struct module*)mb->mods_addr;
 			if (mb->mods_count > 0) {
-				vbe_draw_string(10, 200, "FAT16 image: ", 0xFFFFFF, &font_8x16);
-				delay_animation(1);
-				// The first module should be our FAT16 image
-				char addr_str[16];
-				itoa(mods[0].mod_start, addr_str, 16);
-				vbe_draw_string(120, 200, addr_str, 0xFFFFFF, &font_8x16);
-				// Set the base address for the ISO filesystem
+				terminal_writestring("FAT16 image: ");
+				delay_animation(1, 120, 200);
+				
+				// Set the base address and size for the ISO filesystem
 				iso_fs_set_base(mods[0].mod_start);
-				vbe_draw_string(200, 200, "OK", 0x00FF00, &font_8x16);
+				iso_fs_set_size(mods[0].mod_end - mods[0].mod_start);
+				terminal_writestring_color("OK\n", 0x00FF00);
+			} else {
+				terminal_writestring("No modules found!\n");
+				return;
 			}
+		} else {
+			terminal_writestring("No module info!\n");
+			return;
 		}
+	} else {
+		terminal_writestring("Invalid multiboot magic!\n");
+		return;
 	}
 	
 	// Initialize timer driver
-	vbe_draw_string(10, 220, "Timer driver: ", 0xFFFFFF, &font_8x16);
-	delay_animation(1);
+	terminal_writestring("Timer driver: ");
+	delay_animation(1, 120, 220);
 	if (!timer_driver_init()) {
-		vbe_draw_string(120, 220, "FAILED", 0xFF0000, &font_8x16);
+		terminal_writestring("FAILED\n");
 		return;
 	}
-	vbe_draw_string(120, 220, "OK", 0x00FF00, &font_8x16);
+	terminal_writestring_color("OK\n", 0x00FF00);
 	
 	// Initialize FAT16 filesystem
-	vbe_draw_string(10, 240, "FAT16 filesystem: ", 0xFFFFFF, &font_8x16);
-	delay_animation(1);
+	terminal_writestring("FAT16 filesystem: ");
+	delay_animation(1, 145, 240);
 	if (!fat16_init()) {
-		vbe_draw_string(150, 240, "FAILED", 0xFF0000, &font_8x16);
+		terminal_writestring("FAILED\n");
 		return;
 	}
-	vbe_draw_string(150, 240, "OK", 0x00FF00, &font_8x16);
+	terminal_writestring_color("OK\n", 0x00FF00);
 	
 	// Initialize keyboard
-	vbe_draw_string(10, 260, "Keyboard: ", 0xFFFFFF, &font_8x16);
-	delay_animation(1);
+	terminal_writestring("Keyboard: ");
+	delay_animation(1, 90, 260);
 	if (!keyboard_init()) {
-		vbe_draw_string(100, 260, "FAILED", 0xFF0000, &font_8x16);
+		terminal_writestring("FAILED\n");
 		return;
 	}
-	vbe_draw_string(100, 260, "OK", 0x00FF00, &font_8x16);
+	terminal_writestring_color("OK\n", 0x00FF00);
 	
 	// Show system ready message
-	vbe_draw_string(10, 300, "System initialized successfully!", 0x00FF00, &font_8x16);
+	terminal_writestring("System initialized successfully!\n");
 	
 	// Start shell
-	vbe_draw_string(10, 320, "Starting shell...", 0xFFFFFF, &font_8x16);
-	show_progress_bar(40, 40);  // 40-character wide progress bar
-	//shell_start();
+	terminal_writestring("Starting shell...\n");
+	show_progress_bar(40, 10);  // 40-character wide progress bar
+	shell_start();
 }

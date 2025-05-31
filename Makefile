@@ -21,12 +21,10 @@ INCLUDE_DIR = include
 # Files
 BOOT_ASM = $(SRC_DIR)/boot.asm
 KERNEL_C = $(SRC_DIR)/kernel.c
-VGA_C = $(SRC_DIR)/vga.c
 IO_C = $(SRC_DIR)/io.c
 LINK_SCRIPT = linker.ld
 BOOT_OBJ = $(BUILD_DIR)/boot.o
 KERNEL_OBJ = $(BUILD_DIR)/kernel.o
-VGA_OBJ = $(BUILD_DIR)/vga.o
 IO_OBJ = $(BUILD_DIR)/io.o
 KERNEL_BIN = $(BUILD_DIR)/kernel.bin
 ISO_IMAGE = $(BUILD_DIR)/Litago.iso
@@ -39,8 +37,6 @@ GDT_C_OBJ = $(BUILD_DIR)/gdt.o
 
 # Add these new variables after your existing file definitions
 DRIVERS_DIR = $(SRC_DIR)/drivers
-VGA_DRIVER_C = $(DRIVERS_DIR)/vga_driver.c
-VGA_DRIVER_OBJ = $(BUILD_DIR)/vga_driver.o
 KEYBOARD_DRIVER_C = $(DRIVERS_DIR)/keyboardDriver.c
 KEYBOARD_DRIVER_OBJ = $(BUILD_DIR)/keyboardDriver.o
 TIMER_DRIVER_C = $(DRIVERS_DIR)/timerDriver.c
@@ -82,10 +78,6 @@ SYSCALL_ASM_OBJ = $(BUILD_DIR)/syscall.o
 SYSCALL_C = $(SRC_DIR)/syscall/syscall.c
 SYSCALL_C_OBJ = $(BUILD_DIR)/syscall_c.o
 
-# ANSI support files
-ANSI_C = $(SRC_DIR)/ansi.c
-ANSI_OBJ = $(BUILD_DIR)/ansi.o
-
 # Version files
 VERSION_C = $(SRC_DIR)/version.c
 VERSION_OBJ = $(BUILD_DIR)/version.o
@@ -112,39 +104,35 @@ ISO_FS_TEST_C = $(SRC_DIR)/tests/iso_fs_test.c
 ISO_FS_TEST_OBJ = $(BUILD_DIR)/tests/iso_fs_test.o
 
 # Add ISO_FS_OBJ and ISO_FS_TEST_OBJ to the OBJS list
-OBJS = $(BOOT_OBJ) $(KERNEL_OBJ) $(VGA_OBJ) $(IO_OBJ) $(IDT_ASM_OBJ) $(IDT_C_OBJ) \
-       $(GDT_C_OBJ) $(VGA_DRIVER_OBJ) $(KEYBOARD_DRIVER_OBJ) $(TIMER_DRIVER_OBJ) \
+OBJS = $(BOOT_OBJ) $(KERNEL_OBJ) $(IO_OBJ) $(IDT_ASM_OBJ) $(IDT_C_OBJ) \
+       $(GDT_C_OBJ) $(KEYBOARD_DRIVER_OBJ) $(TIMER_DRIVER_OBJ) \
        $(STRING_OBJ) $(SHELL_OBJ) $(PMM_OBJ) $(MEMORY_MAP_OBJ) $(HEAP_OBJ) $(STDLIB_OBJ) $(LIBGCC_OBJ) \
        $(TEST_OBJ) $(TEST2_OBJ) $(SYSCALL_TEST_OBJ) $(SYSCALL_ASM_OBJ) $(SYSCALL_C_OBJ) \
        $(VERSION_OBJ) $(FAT16_OBJ) $(ATA_OBJ) $(PROGRAM_OBJ) $(EDITOR_OBJ) $(ISO_FS_OBJ) $(ISO_FS_TEST_OBJ) \
-       $(ANSI_OBJ)
+       $(PROGRESS_OBJ)
 
 # Add after your other file definitions
 UTILS_DIR = $(SRC_DIR)/utils
 PROGRESS_C = $(UTILS_DIR)/progress.c
 PROGRESS_OBJ = $(BUILD_DIR)/progress.o
+STDIO_C = $(UTILS_DIR)/stdio.c
+STDIO_OBJ = $(BUILD_DIR)/stdio.o
+ANSI_C = $(UTILS_DIR)/ansi.c
+ANSI_OBJ = $(BUILD_DIR)/ansi.o
 
-# Add ISO_FS_OBJ and ISO_FS_TEST_OBJ to the OBJS list
-OBJS = $(BOOT_OBJ) $(KERNEL_OBJ) $(VGA_OBJ) $(IO_OBJ) $(IDT_ASM_OBJ) $(IDT_C_OBJ) \
-       $(GDT_C_OBJ) $(VGA_DRIVER_OBJ) $(KEYBOARD_DRIVER_OBJ) $(TIMER_DRIVER_OBJ) \
+# Add VBE and font objects to OBJS list
+OBJS = $(BOOT_OBJ) $(KERNEL_OBJ) $(IO_OBJ) $(IDT_ASM_OBJ) $(IDT_C_OBJ) \
+       $(GDT_C_OBJ) $(KEYBOARD_DRIVER_OBJ) $(TIMER_DRIVER_OBJ) \
        $(STRING_OBJ) $(SHELL_OBJ) $(PMM_OBJ) $(MEMORY_MAP_OBJ) $(HEAP_OBJ) $(STDLIB_OBJ) $(LIBGCC_OBJ) \
        $(TEST_OBJ) $(TEST2_OBJ) $(SYSCALL_TEST_OBJ) $(SYSCALL_ASM_OBJ) $(SYSCALL_C_OBJ) \
        $(VERSION_OBJ) $(FAT16_OBJ) $(ATA_OBJ) $(PROGRAM_OBJ) $(EDITOR_OBJ) $(ISO_FS_OBJ) $(ISO_FS_TEST_OBJ) \
-       $(ANSI_OBJ) $(PROGRESS_OBJ)
+       $(PROGRESS_OBJ) $(VBE_OBJ) $(FONT_OBJ) $(STDIO_OBJ) $(ANSI_OBJ)
 
 # Add after your other file definitions
 VBE_C = $(DRIVERS_DIR)/vbe.c
 VBE_OBJ = $(BUILD_DIR)/vbe.o
 FONT_C = $(DRIVERS_DIR)/font_8x16.c
 FONT_OBJ = $(BUILD_DIR)/font_8x16.o
-
-# Add ISO_FS_OBJ and ISO_FS_TEST_OBJ to the OBJS list
-OBJS = $(BOOT_OBJ) $(KERNEL_OBJ) $(VGA_OBJ) $(IO_OBJ) $(IDT_ASM_OBJ) $(IDT_C_OBJ) \
-       $(GDT_C_OBJ) $(VGA_DRIVER_OBJ) $(KEYBOARD_DRIVER_OBJ) $(TIMER_DRIVER_OBJ) \
-       $(STRING_OBJ) $(SHELL_OBJ) $(PMM_OBJ) $(MEMORY_MAP_OBJ) $(HEAP_OBJ) $(STDLIB_OBJ) $(LIBGCC_OBJ) \
-       $(TEST_OBJ) $(TEST2_OBJ) $(SYSCALL_TEST_OBJ) $(SYSCALL_ASM_OBJ) $(SYSCALL_C_OBJ) \
-       $(VERSION_OBJ) $(FAT16_OBJ) $(ATA_OBJ) $(PROGRAM_OBJ) $(EDITOR_OBJ) $(ISO_FS_OBJ) $(ISO_FS_TEST_OBJ) \
-       $(ANSI_OBJ) $(PROGRESS_OBJ) $(VBE_OBJ) $(FONT_OBJ)
 
 # Default target
 .PHONY: all
@@ -169,11 +157,6 @@ $(KERNEL_OBJ): $(KERNEL_C) | $(BUILD_DIR)
 	@echo "Compiling kernel..."
 	$(CC) $(CFLAGS) $< -o $@
 
-# Compile VGA
-$(VGA_OBJ): $(VGA_C) | $(BUILD_DIR)
-	@echo "Compiling VGA..."
-	$(CC) $(CFLAGS) $< -o $@
-
 # Compile I/O
 $(IO_OBJ): $(IO_C) | $(BUILD_DIR)
 	@echo "Compiling I/O..."
@@ -192,11 +175,6 @@ $(IDT_C_OBJ): $(IDT_C) | $(BUILD_DIR)
 # Compile GDT C
 $(GDT_C_OBJ): $(GDT_C) | $(BUILD_DIR)
 	@echo "Compiling GDT C..."
-	$(CC) $(CFLAGS) $< -o $@
-
-# Compile VGA driver
-$(VGA_DRIVER_OBJ): $(VGA_DRIVER_C) | $(BUILD_DIR)
-	@echo "Compiling VGA driver..."
 	$(CC) $(CFLAGS) $< -o $@
 
 # Compile keyboard driver
@@ -314,14 +292,19 @@ $(PROGRESS_OBJ): $(PROGRESS_C) | $(BUILD_DIR)
 	@echo "Compiling progress bar..."
 	$(CC) $(CFLAGS) $< -o $@
 
-# Compile VBE driver
+# Compile VBE
 $(VBE_OBJ): $(VBE_C) | $(BUILD_DIR)
-	@echo "Compiling VBE driver..."
+	@echo "Compiling VBE..."
 	$(CC) $(CFLAGS) $< -o $@
 
 # Compile font
 $(FONT_OBJ): $(FONT_C) | $(BUILD_DIR)
 	@echo "Compiling font..."
+	$(CC) $(CFLAGS) $< -o $@
+
+# Compile stdio
+$(STDIO_OBJ): $(STDIO_C) | $(BUILD_DIR)
+	@echo "Compiling stdio..."
 	$(CC) $(CFLAGS) $< -o $@
 
 # Link kernel

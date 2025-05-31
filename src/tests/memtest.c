@@ -1,7 +1,8 @@
-#include "../../include/tests/memtest.h"
 #include "../../include/memory/pmm.h"
-#include "../../include/vga.h"
-#include <stdint.h>
+#include "../../include/drivers/vbe.h"
+#include "../../include/string.h"
+#include <stddef.h>
+#include <stdbool.h>
 
 // Memory test patterns
 static const uint32_t test_patterns[] = {
@@ -36,91 +37,68 @@ static bool test_memory_block(uint32_t* start, size_t size, uint32_t pattern) {
 }
 
 void memtest_run(void) {
-    terminal_setcolor(VGA_COLOR_YELLOW);
     terminal_writestring("Starting memory test...\n");
-    terminal_setcolor(VGA_COLOR_WHITE);
-
-    // Print memory status before allocation
-    terminal_writestring("Memory status before test:\n");
-    terminal_writestring("Total pages: ");
-    char num_str[20];
-    int i = 0;
-    size_t total = pmm_get_total_pages();
-    do {
-        num_str[i++] = '0' + (total % 10);
-        total /= 10;
-    } while (total > 0);
-    while (--i >= 0) {
-        terminal_putchar(num_str[i]);
-    }
-    terminal_writestring("\n");
-
-    terminal_writestring("Free pages: ");
-    i = 0;
-    size_t free = pmm_get_free_pages();
-    do {
-        num_str[i++] = '0' + (free % 10);
-        free /= 10;
-    } while (free > 0);
-    while (--i >= 0) {
-        terminal_putchar(num_str[i]);
-    }
-    terminal_writestring("\n\n");
-
-    // Get a block of memory to test
-    void* test_block = pmm_alloc_page();  // Allocate a single page
-    if (!test_block) {
-        terminal_setcolor(VGA_COLOR_RED);
-        terminal_writestring("Failed to allocate memory for testing\n");
-        terminal_writestring("No free pages available\n");
-        terminal_setcolor(VGA_COLOR_WHITE);
-        return;
-    }
-
-    terminal_writestring("Successfully allocated page at address: 0x");
-    uint32_t addr = (uint32_t)test_block;
-    for (int j = 7; j >= 0; j--) {
-        char c = "0123456789ABCDEF"[(addr >> (j * 4)) & 0xF];
-        terminal_putchar(c);
-    }
-    terminal_writestring("\n\n");
-
-    uint32_t* test_addr = (uint32_t*)test_block;
-    bool all_passed = true;
-
-    // Test each pattern
-    for (size_t i = 0; i < NUM_PATTERNS; i++) {
-        terminal_writestring("Testing pattern 0x");
-        // Print pattern in hex
-        uint32_t pattern = test_patterns[i];
-        for (int j = 7; j >= 0; j--) {
-            char c = "0123456789ABCDEF"[(pattern >> (j * 4)) & 0xF];
-            terminal_putchar(c);
+    
+    // Test physical memory allocation
+    void* page1 = pmm_alloc_page();
+    void* page2 = pmm_alloc_page();
+    void* page3 = pmm_alloc_page();
+    
+    if (page1 && page2 && page3) {
+        terminal_writestring("Physical memory allocation successful\n");
+        
+        // Test memory writing
+        uint32_t* ptr1 = (uint32_t*)page1;
+        uint32_t* ptr2 = (uint32_t*)page2;
+        uint32_t* ptr3 = (uint32_t*)page3;
+        
+        // Write test patterns
+        for (int i = 0; i < 1024; i++) {
+            ptr1[i] = 0xAAAAAAAA;
+            ptr2[i] = 0x55555555;
+            ptr3[i] = 0x12345678;
         }
-        terminal_writestring("... ");
-
-        if (test_memory_block(test_addr, 4096, pattern)) {  // Test one page (4KB)
-            terminal_setcolor(VGA_COLOR_GREEN);
-            terminal_writestring("PASSED\n");
+        
+        // Verify patterns
+        bool success = true;
+        for (int i = 0; i < 1024; i++) {
+            if (ptr1[i] != 0xAAAAAAAA || ptr2[i] != 0x55555555 || ptr3[i] != 0x12345678) {
+                success = false;
+                break;
+            }
+        }
+        
+        if (success) {
+            terminal_writestring("Memory write/read test successful\n");
         } else {
-            terminal_setcolor(VGA_COLOR_RED);
-            terminal_writestring("FAILED\n");
-            all_passed = false;
+            terminal_writestring("Memory write/read test failed\n");
         }
-        terminal_setcolor(VGA_COLOR_WHITE);
-    }
-
-    // Free the test block
-    pmm_free_page(test_block);
-
-    // Print final result
-    terminal_writestring("\nMemory test ");
-    if (all_passed) {
-        terminal_setcolor(VGA_COLOR_GREEN);
-        terminal_writestring("COMPLETED SUCCESSFULLY\n");
+        
+        // Free memory
+        pmm_free_page(page1);
+        pmm_free_page(page2);
+        pmm_free_page(page3);
+        terminal_writestring("Memory freed successfully\n");
     } else {
-        terminal_setcolor(VGA_COLOR_RED);
-        terminal_writestring("FAILED\n");
+        terminal_writestring("Physical memory allocation failed\n");
     }
-    terminal_setcolor(VGA_COLOR_WHITE);
+    
+    // Test heap memory
+    void* heap1 = malloc(1024);
+    void* heap2 = malloc(2048);
+    void* heap3 = malloc(4096);
+    
+    if (heap1 && heap2 && heap3) {
+        terminal_writestring("Heap memory allocation successful\n");
+        
+        // Free heap memory
+        free(heap1);
+        free(heap2);
+        free(heap3);
+        terminal_writestring("Heap memory freed successfully\n");
+    } else {
+        terminal_writestring("Heap memory allocation failed\n");
+    }
+    
+    terminal_writestring("Memory test complete\n");
 } 

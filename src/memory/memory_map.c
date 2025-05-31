@@ -1,5 +1,6 @@
 #include "../../include/memory/memory_map.h"
-#include "../../include/vga.h"
+#include "../../include/drivers/vbe.h"
+#include "../../include/io.h"
 #include <stddef.h>
 
 // Maximum number of memory map entries
@@ -42,9 +43,7 @@ struct multiboot_info {
 
 void memory_map_init(uint32_t multiboot_magic, void* multiboot_info_ptr) {
     if (multiboot_magic != 0x2BADB002) {
-        terminal_setcolor(VGA_COLOR_RED);
         terminal_writestring("Invalid Multiboot magic number\n");
-        terminal_setcolor(VGA_COLOR_WHITE);
         return;
     }
 
@@ -61,9 +60,7 @@ void memory_map_init(uint32_t multiboot_magic, void* multiboot_info_ptr) {
     terminal_writestring("\n");
     
     if (!(mb_info->flags & 0x40)) {  // Check if memory map is available
-        terminal_setcolor(VGA_COLOR_RED);
         terminal_writestring("No memory map available in Multiboot info\n");
-        terminal_setcolor(VGA_COLOR_WHITE);
         return;
     }
 
@@ -95,7 +92,6 @@ void memory_map_init(uint32_t multiboot_magic, void* multiboot_info_ptr) {
     memory_map.entries = entries;
     memory_map.count = count;
 
-    terminal_setcolor(VGA_COLOR_GREEN);
     terminal_writestring("Memory map initialized successfully with ");
     char count_str[10];
     int i = 0;
@@ -108,9 +104,6 @@ void memory_map_init(uint32_t multiboot_magic, void* multiboot_info_ptr) {
         terminal_putchar(count_str[i]);
     }
     terminal_writestring(" entries\n");
-    terminal_setcolor(VGA_COLOR_WHITE);
-    
-    
 }
 
 uint64_t memory_map_get_total_memory(void) {

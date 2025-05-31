@@ -3,13 +3,13 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include "vga.h"
+#include "../include/drivers/vbe.h"
 
 // Editor configuration
 #define EDITOR_MAX_LINES 1000
 #define EDITOR_MAX_LINE_LENGTH 256
 #define EDITOR_STATUS_BAR_HEIGHT 1
-#define EDITOR_EDITABLE_HEIGHT (VGA_HEIGHT - EDITOR_STATUS_BAR_HEIGHT)
+#define EDITOR_EDITABLE_HEIGHT (VBE_HEIGHT / 16 - EDITOR_STATUS_BAR_HEIGHT)  // Assuming 8x16 font
 
 // Editor state structure
 typedef struct {
@@ -20,8 +20,8 @@ typedef struct {
     int scroll_offset;               // Number of lines scrolled up
     bool modified;                   // Whether the file has been modified
     char* filename;                  // Current file name
-    enum vga_color text_color;       // Text color
-    enum vga_color bg_color;         // Background color
+    uint32_t text_color;             // Text color (32-bit ARGB)
+    uint32_t bg_color;               // Background color (32-bit ARGB)
 } Editor;
 
 // Function declarations

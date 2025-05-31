@@ -1,16 +1,12 @@
-#include "../include/vga.h"
 #include "../include/memory/pmm.h"
 #include "../include/memory/heap.h"
 #include "../include/memory/program.h"
+#include "../include/drivers/vbe.h"
 #include <stddef.h>
 #include <stdbool.h>
 
 void test_memory_management() {
-    terminal_setcolor(VGA_COLOR_MAGENTA);
-    terminal_writestring("\n!!! THIS IS MEMTEST2: Advanced Memory Management Test !!!\n");
-    terminal_setcolor(VGA_COLOR_WHITE);
-
-    // Test PMM
+    terminal_writestring("!!! THIS IS MEMTEST2: Advanced Memory Management Test !!!\n");
     terminal_writestring("\nTesting Physical Memory Manager (PMM):\n");
     
     // Allocate some physical pages
@@ -27,9 +23,7 @@ void test_memory_management() {
         pmm_free_page(page3);
         terminal_writestring("✓ Successfully freed 3 physical pages\n");
     } else {
-        terminal_setcolor(VGA_COLOR_RED);
         terminal_writestring("✗ Failed to allocate physical pages\n");
-        terminal_setcolor(VGA_COLOR_WHITE);
     }
 
     // Test Heap
@@ -49,9 +43,7 @@ void test_memory_management() {
         free(heap3);
         terminal_writestring("✓ Successfully freed heap memory\n");
     } else {
-        terminal_setcolor(VGA_COLOR_RED);
         terminal_writestring("✗ Failed to allocate heap memory\n");
-        terminal_setcolor(VGA_COLOR_WHITE);
     }
 
     // Test memory writing
@@ -60,35 +52,31 @@ void test_memory_management() {
     // Allocate a page and write to it
     void* test_page = pmm_alloc_page();
     if (test_page) {
-        // Write some test data
-        uint32_t* data = (uint32_t*)test_page;
+        // Write a pattern to the page
+        uint32_t* ptr = (uint32_t*)test_page;
         for (int i = 0; i < 1024; i++) {
-            data[i] = i;
+            ptr[i] = 0xDEADBEEF;
         }
         
-        // Verify the data
+        // Verify the pattern
         bool success = true;
         for (int i = 0; i < 1024; i++) {
-            if (data[i] != i) {
+            if (ptr[i] != 0xDEADBEEF) {
                 success = false;
                 break;
             }
         }
         
         if (success) {
-            terminal_writestring("✓ Successfully wrote and verified memory\n");
+            terminal_writestring("✓ Successfully wrote and verified memory pattern\n");
         } else {
-            terminal_setcolor(VGA_COLOR_RED);
             terminal_writestring("✗ Memory verification failed\n");
-            terminal_setcolor(VGA_COLOR_WHITE);
         }
         
         pmm_free_page(test_page);
+    } else {
+        terminal_writestring("✗ Failed to allocate test page\n");
     }
-
-    terminal_setcolor(VGA_COLOR_CYAN);
-    terminal_writestring("\n=== Memory Management Test Complete ===\n\n");
-    terminal_setcolor(VGA_COLOR_WHITE);
 }
 
 void my_test_program(void) {

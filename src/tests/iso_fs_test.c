@@ -1,6 +1,7 @@
+#include "../../include/drivers/vbe.h"
 #include "../../include/drivers/iso_fs.h"
-#include "../../include/vga.h"
-#include <stdint.h>
+#include "../../include/string.h"
+#include <stddef.h>
 
 void test_iso_fs(void) {
     terminal_writestring("Testing ISO filesystem driver...\n");

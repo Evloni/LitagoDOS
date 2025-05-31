@@ -1,9 +1,10 @@
 #include "../include/syscall/syscall.h"
-#include "../include/vga.h"
-#include "../include/memory/pmm.h"
-#include "../include/io.h"
+#include "../include/drivers/vbe.h"
+#include "../include/string.h"
 #include <stddef.h>
 #include "../include/idt.h"
+#include "../include/memory/pmm.h"
+#include "../include/io.h"
 // Add after the includes
 extern void syscall_entry(void);
 // Syscall handler function

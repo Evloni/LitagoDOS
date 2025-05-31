@@ -1,6 +1,6 @@
 #include "../../include/drivers/ata.h"
 #include "../../include/io.h"
-#include "../../include/vga.h"
+#include "../../include/drivers/vbe.h"
 #include <stdbool.h>
 #include <stdint.h>
 

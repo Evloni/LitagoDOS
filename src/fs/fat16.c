@@ -1,6 +1,6 @@
 #include "../../include/fs/fat16.h"
 #include "../../include/drivers/iso_fs.h"
-#include "../../include/vga.h"
+#include "../../include/drivers/vbe.h"
 #include <string.h>
 
 // Simple toupper implementation
@@ -24,15 +24,15 @@ uint32_t root_dir_sectors;
 bool fat16_init(void) {
     // Initialize ISO filesystem first
     if (!iso_fs_init()) {
-        terminal_writestring("Failed to initialize ISO filesystem\n");
         return false;
     }
 
     // Read boot sector
-    if (!iso_fs_read_sectors(0, 1, &boot_sector)) {
-        terminal_writestring("Failed to read boot sector\n");
+    uint8_t sector_buffer[512];
+    if (!iso_fs_read_sectors(0, 1, sector_buffer)) {
         return false;
     }
+    memcpy(&boot_sector, sector_buffer, sizeof(fat16_boot_sector_t));
 
     // Verify FAT16 signature
     if (boot_sector.fs_type[0] != 'F' || 
@@ -40,7 +40,6 @@ bool fat16_init(void) {
         boot_sector.fs_type[2] != 'T' || 
         boot_sector.fs_type[3] != '1' || 
         boot_sector.fs_type[4] != '6') {
-        terminal_writestring("Not a FAT16 filesystem\n");
         return false;
     }
 
@@ -54,13 +53,11 @@ bool fat16_init(void) {
     // Allocate memory for FAT table
     fat_table = (uint16_t*)malloc(sectors_per_fat * boot_sector.bytes_per_sector);
     if (!fat_table) {
-        terminal_writestring("Failed to allocate memory for FAT table\n");
         return false;
     }
 
     // Read FAT table
     if (!iso_fs_read_sectors(fat_start_sector, sectors_per_fat, fat_table)) {
-        terminal_writestring("Failed to read FAT table\n");
         free(fat_table);
         fat_table = NULL;
         return false;
@@ -123,19 +120,13 @@ static const char* get_file_type(const fat16_dir_entry_t* entry) {
 bool fat16_read_root_dir(void) {
     fat16_dir_entry_t* root_dir = (fat16_dir_entry_t*)malloc(root_dir_sectors * boot_sector.bytes_per_sector);
     if (!root_dir) {
-        terminal_writestring("Failed to allocate memory for root directory\n");
         return false;
     }
 
     if (!iso_fs_read_sectors(root_dir_start_sector, root_dir_sectors, root_dir)) {
-        terminal_writestring("Failed to read root directory\n");
         free(root_dir);
         return false;
     }
-
-    // Print header
-    terminal_writestring("NAME         SIZE      TYPE    \n");
-    terminal_writestring("-------------------------------\n");
 
     for (int i = 0; i < boot_sector.root_entries; i++) {
         // End of directory
@@ -163,19 +154,16 @@ bool fat16_read_root_dir(void) {
 
         // Print name, padded to 12 chars
         int actual_name_len = strlen(name);
-        terminal_writestring(name);
-        for (int s = actual_name_len; s < 12; s++) terminal_putchar(' ');
+        for (int s = actual_name_len; s < 12; s++) name[idx++] = ' ';
+        name[idx] = '\0';
 
         // Print size or blank for directories, padded to 9 chars
         if (root_dir[i].attributes & FAT16_ATTR_DIRECTORY) {
-            for (int s = 0; s < 9; s++) terminal_putchar(' ');
+            for (int s = 0; s < 9; s++) name[idx++] = ' ';
         } else {
             char size_str[16];
             itoa(root_dir[i].file_size, size_str, 10);
-            terminal_writestring(size_str);
-            terminal_writestring(" bytes");
-            int len = strlen(size_str) + 6;
-            for (int s = len; s < 9; s++) terminal_putchar(' ');
+            for (int s = strlen(size_str) + 6; s < 9; s++) name[idx++] = ' ';
         }
 
         // Print type, centered in 8 chars
@@ -184,10 +172,10 @@ bool fat16_read_root_dir(void) {
         int total_width = 8;
         int left_pad = (total_width - type_len) / 2;
         int right_pad = total_width - type_len - left_pad;
-        for (int s = 0; s < left_pad; s++) terminal_putchar(' ');
-        terminal_writestring(type_str);
-        for (int s = 0; s < right_pad; s++) terminal_putchar(' ');
-        terminal_putchar('\n');
+        for (int s = 0; s < left_pad; s++) name[idx++] = ' ';
+        for (int s = 0; s < type_len; s++) name[idx++] = type_str[s];
+        for (int s = 0; s < right_pad; s++) name[idx++] = ' ';
+        name[idx] = '\0';
     }
 
     free(root_dir);
@@ -272,7 +260,6 @@ int fat16_read_file(const char* filename, void* buffer, uint32_t max_size) {
 bool fat16_list_directory(const char* path) {
     // For now, we only support root directory
     if (path[0] != '\0' && strcmp(path, "/") != 0) {
-        terminal_writestring("Only root directory is supported\n");
         return false;
     }
 

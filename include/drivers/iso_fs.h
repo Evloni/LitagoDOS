@@ -13,6 +13,9 @@ bool iso_fs_init(void);
 // Set the base address for the filesystem
 void iso_fs_set_base(uint32_t base);
 
+// Set the size of the filesystem
+void iso_fs_set_size(uint32_t size);
+
 // Read sectors from the ISO filesystem
 bool iso_fs_read_sectors(uint32_t lba, uint8_t sectors, void* buffer);
 

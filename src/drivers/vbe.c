@@ -1,110 +1,275 @@
-#include "../../include/vbe.h"
+#include "../../include/drivers/vbe.h"
 #include "../../include/io.h"
+#include "../../include/string.h"
 #include "../../include/multiboot.h"
-#include "../../include/font_8x16.h"
-
+#include <stdbool.h>
 #include <stdint.h>
-#include <stddef.h>
+#include <stdarg.h>
 
-// Global VBE variables
-uint32_t* framebuffer = NULL;
-int screen_width = 0;
-int screen_height = 0;
-int screen_pitch = 0;
+// VBE display dimensions
+#define VBE_WIDTH 1024
+#define VBE_HEIGHT 768
+#define VBE_BPP 32     // Bits per pixel
+#define VBE_PITCH (VBE_WIDTH * (VBE_BPP / 8))
 
-// Initialize VBE mode
-void vbe_init(uint32_t multiboot_magic, void* multiboot_info_ptr) {
+// VBE control block
+static struct {
+    uint32_t* framebuffer;
+    uint32_t width;
+    uint32_t height;
+    uint32_t pitch;
+    uint32_t bpp;
+    bool initialized;
+} vbe_state = {
+    .framebuffer = NULL,
+    .width = VBE_WIDTH,
+    .height = VBE_HEIGHT,
+    .pitch = VBE_PITCH,
+    .bpp = VBE_BPP,
+    .initialized = false
+};
+
+// Current cursor position
+int vbe_cursor_x = 0;
+int vbe_cursor_y = 0;
+
+// Current text color
+static uint32_t current_color = 0xFFFFFFFF;  // Default to white
+
+// Initialize VBE
+void vbe_initialize(uint32_t multiboot_magic, void* multiboot_info) {
     if (multiboot_magic != 0x2BADB002) {
-        return; // Not booted by a multiboot-compliant bootloader
+        return;
     }
 
-    struct multiboot_header* mb_info = (struct multiboot_header*)multiboot_info_ptr;
+    struct multiboot_header* mb_info = (struct multiboot_header*)multiboot_info;
     
     // Check if VBE info is available
     if (!(mb_info->flags & (1 << 11))) {
-        return; // VBE info not available
+        return;
     }
 
     // Get VBE mode info
-    struct vbe_mode_info* mode_info = (struct vbe_mode_info*)(mb_info->vbe_mode_info);
+    struct vbe_mode_info* mode_info = (struct vbe_mode_info*)mb_info->vbe_mode_info;
     
-    // Initialize global variables
-    framebuffer = (uint32_t*)mode_info->framebuffer;
-    screen_width = mode_info->width;
-    screen_height = mode_info->height;
-    screen_pitch = mode_info->pitch;
+    // Store framebuffer address
+    vbe_state.framebuffer = (uint32_t*)mode_info->framebuffer;
+    vbe_state.width = mode_info->width;
+    vbe_state.height = mode_info->height;
+    vbe_state.pitch = mode_info->pitch;
+    vbe_state.bpp = mode_info->bpp;
+    vbe_state.initialized = true;
 }
 
-// Get screen width
-uint16_t vbe_get_width(void) {
-    return screen_width;
-}
-
-// Get screen height
-uint16_t vbe_get_height(void) {
-    return screen_height;
-}
-
-// Clear the screen with a color
-void vbe_clear_screen(uint32_t color) {
-    if (!framebuffer) return;
-    
-    for (int y = 0; y < screen_height; y++) {
-        uint32_t* fb = (uint32_t*)((uint8_t*)framebuffer + y * screen_pitch);
-        for (int x = 0; x < screen_width; x++) {
-            fb[x] = color;
-        }
-    }
-}
-
-// Plots a pixel (x, y) with color (32-bit)
-void vbe_plot_pixel(int x, int y, uint32_t color) {
-    if (x < 0 || y < 0 || x >= screen_width || y >= screen_height) return;
-    uint32_t* fb = (uint32_t*)((uint8_t*)framebuffer + y * screen_pitch);
-    fb[x] = color;
-}
-
-// Fill rectangle with color (used for background text)
-void vbe_fill_rect(int x, int y, int w, int h, uint32_t color) {
-    for (int dy = 0; dy < h; dy++) {
-        for (int dx = 0; dx < w; dx++) {
-            vbe_plot_pixel(x + dx, y + dy, color);
-        }
-    }
-}
-
-// Draw single character
+// Draw a single character
 void vbe_draw_char(int x, int y, char c, uint32_t color, const struct font* font) {
-    if (!framebuffer || !font || c < font->first_char || c > font->last_char) return;
-
-    int char_index = c - font->first_char;
-    const uint8_t* char_data = &font->data[char_index * font->height];
-
-    for (int row = 0; row < font->height; row++) {
-        uint8_t bits = char_data[row];
-        for (int col = 0; col < font->width; col++) {
-            if (bits & (1 << (7 - col))) {
-                vbe_plot_pixel(x + col, y + row, color);
+    if (!vbe_state.initialized || !font) return;
+    
+    // Get character bitmap - subtract 0x20 to get the correct index in the font data
+    const uint8_t* bitmap = &font->data[(c - 0x20) * font->height];
+    
+    // Draw each pixel of the character
+    for (int py = 0; py < font->height; py++) {
+        for (int px = 0; px < font->width; px++) {
+            if (bitmap[py] & (1 << (7 - px))) {
+                int screen_x = x + px;
+                int screen_y = y + py;
+                
+                if (screen_x >= 0 && screen_x < vbe_state.width &&
+                    screen_y >= 0 && screen_y < vbe_state.height) {
+                    uint32_t* pixel = vbe_state.framebuffer + screen_y * (vbe_state.pitch / 4) + screen_x;
+                    *pixel = color;
+                }
             }
         }
     }
 }
 
-// Draw string
+// Draw a string
 void vbe_draw_string(int x, int y, const char* str, uint32_t color, const struct font* font) {
+    if (!vbe_state.initialized || !str || !font) return;
+    
+    int current_x = x;
+    int current_y = y;
+    
     while (*str) {
-        vbe_draw_char(x, y, *str, color, font);
-        x += font->width;
+        if (*str == '\n') {
+            current_x = x;
+            current_y += font->height;
+        } else {
+            vbe_draw_char(current_x, current_y, *str, color, font);
+            current_x += font->width;
+            
+            // Check for line wrapping
+            if (current_x + font->width > vbe_state.width) {
+                current_x = x;
+                current_y += font->height;
+            }
+        }
         str++;
     }
 }
 
-// Draw string with background color
-void vbe_draw_string_bg(int x, int y, const char* str, uint32_t fg, uint32_t bg, const struct font* font) {
-    while (*str) {
-        vbe_fill_rect(x, y, font->width, font->height, bg);
-        vbe_draw_char(x, y, *str, fg, font);
-        x += font->width;
-        str++;
+// Draw a string centered horizontally
+void vbe_draw_string_centered(int y, const char* str, uint32_t color, const struct font* font) {
+    if (!vbe_state.initialized || !str || !font) return;
+    
+    int width = strlen(str) * font->width;
+    int x = (vbe_state.width - width) / 2;
+    vbe_draw_string(x, y, str, color, font);
+}
+
+// Draw a rectangle
+void vbe_draw_rect(int x, int y, int width, int height, uint32_t color) {
+    if (!vbe_state.initialized) return;
+    
+    for (int py = y; py < y + height; py++) {
+        for (int px = x; px < x + width; px++) {
+            if (px >= 0 && px < vbe_state.width &&
+                py >= 0 && py < vbe_state.height) {
+                uint32_t* pixel = vbe_state.framebuffer + py * (vbe_state.pitch / 4) + px;
+                *pixel = color;
+            }
+        }
     }
 }
+
+// Clear the screen
+void vbe_clear_screen(uint32_t color) {
+    if (!vbe_state.initialized) return;
+    
+    for (int y = 0; y < vbe_state.height; y++) {
+        for (int x = 0; x < vbe_state.width; x++) {
+            uint32_t* pixel = vbe_state.framebuffer + y * (vbe_state.pitch / 4) + x;
+            *pixel = color;
+        }
+    }
+}
+
+// Get screen width
+uint16_t vbe_get_width(void) {
+    return (uint16_t)vbe_state.width;
+}
+
+// Get screen height
+uint16_t vbe_get_height(void) {
+    return (uint16_t)vbe_state.height;
+}
+
+// Set cursor position
+void vbe_set_cursor(int x, int y) {
+    vbe_cursor_x = x;
+    vbe_cursor_y = y;
+}
+
+// Get cursor position
+void vbe_get_cursor(int* x, int* y) {
+    if (x) *x = vbe_cursor_x;
+    if (y) *y = vbe_cursor_y;
+}
+
+// Terminal-compatible wrapper functions
+void terminal_initialize(void) {
+    // Already initialized by vbe_initialize
+    vbe_cursor_x = 0;
+    vbe_cursor_y = 0;
+}
+
+void terminal_clear(void) {
+    vbe_clear_screen(0x00000000); // Black background
+    vbe_cursor_x = 0;
+    vbe_cursor_y = 0;
+}
+
+void terminal_putchar(char c) {
+    if (c == '\n') {
+        vbe_cursor_x = 0;
+        vbe_cursor_y += font_8x16.height;
+    } else {
+        vbe_draw_char(vbe_cursor_x, vbe_cursor_y, c, 0xFFFFFFFF, &font_8x16); // White text
+        vbe_cursor_x += font_8x16.width;
+        
+        // Check for line wrapping
+        if (vbe_cursor_x + font_8x16.width > vbe_state.width) {
+            vbe_cursor_x = 0;
+            vbe_cursor_y += font_8x16.height;
+        }
+    }
+}
+
+void terminal_putentryat(char c, uint8_t color, size_t x, size_t y) {
+    // Convert from character coordinates to pixel coordinates
+    int pixel_x = x * font_8x16.width;
+    int pixel_y = y * font_8x16.height;
+    
+    // Draw the character
+    vbe_draw_char(pixel_x, pixel_y, c, color, &font_8x16);
+    
+    // Update cursor position
+    vbe_cursor_x = pixel_x + font_8x16.width;
+    vbe_cursor_y = pixel_y;
+}
+
+void terminal_writestring(const char* data) {
+    if (!data) return;
+    
+    while (*data) {
+        terminal_putchar(*data++);
+    }
+}
+
+void terminal_writehex(uint32_t n) {
+    char hex[9];
+    hex[8] = '\0';
+    for (int i = 7; i >= 0; i--) {
+        uint8_t digit = n & 0xF;
+        hex[i] = digit < 10 ? '0' + digit : 'A' + (digit - 10);
+        n >>= 4;
+    }
+    terminal_writestring(hex);
+}
+
+void terminal_get_cursor(size_t* x, size_t* y) {
+    if (x) *x = vbe_cursor_x / font_8x16.width;
+    if (y) *y = vbe_cursor_y / font_8x16.height;
+}
+
+void terminal_update_cursor(void) {
+    // Ensure cursor stays within screen bounds
+    if (vbe_cursor_x >= vbe_state.width) {
+        vbe_cursor_x = 0;
+        vbe_cursor_y += font_8x16.height;
+    }
+    if (vbe_cursor_y >= vbe_state.height) {
+        // Scroll the screen up by one line
+        vbe_cursor_y -= font_8x16.height;
+        // TODO: Implement screen scrolling
+    }
+}
+
+// Set the current text color
+void vbe_setcolor(uint32_t color) {
+    current_color = color;
+}
+
+void terminal_putchar_color(char c, uint32_t color) {
+    if (c == '\n') {
+        vbe_cursor_x = 0;
+        vbe_cursor_y += font_8x16.height;
+    } else {
+        vbe_draw_char(vbe_cursor_x, vbe_cursor_y, c, color, &font_8x16);
+        vbe_cursor_x += font_8x16.width;
+        if (vbe_cursor_x + font_8x16.width > vbe_state.width) {
+            vbe_cursor_x = 0;
+            vbe_cursor_y += font_8x16.height;
+        }
+    }
+}
+
+void terminal_writestring_color(const char* data, uint32_t color) {
+    if (!data) return;
+    while (*data) {
+        terminal_putchar_color(*data++, color);
+    }
+}
+

@@ -1,6 +1,6 @@
 #include "../../include/memory/program.h"
 #include "../../include/memory/pmm.h"
-#include "../../include/vga.h"
+#include "../../include/drivers/vbe.h"
 #include <string.h>
 
 // Program loading address (1MB after kernel)

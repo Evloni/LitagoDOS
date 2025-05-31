@@ -1,7 +1,7 @@
 #include "../../include/idt.h"
 #include "../../include/io.h"
 #include "../../include/system.h"
-#include "../../include/vga.h"
+#include "../../include/drivers/vbe.h"
 #include <stddef.h>
 
 // IDT pointer structure
@@ -26,8 +26,10 @@ extern void syscall_entry(void);
 // Helper to print a byte as two hex digits
 static void print_hex(uint8_t value) {
     const char *hex = "0123456789ABCDEF";
-    terminal_putchar(hex[(value >> 4) & 0x0F]);
-    terminal_putchar(hex[value & 0x0F]);
+    vbe_draw_char(vbe_cursor_x * 8, vbe_cursor_y * 16, hex[(value >> 4) & 0x0F], 0xFFFFFFFF, &font_8x16);
+    vbe_cursor_x++;
+    vbe_draw_char(vbe_cursor_x * 8, vbe_cursor_y * 16, hex[value & 0x0F], 0xFFFFFFFF, &font_8x16);
+    vbe_cursor_x++;
 }
 
 // Simple memset implementation

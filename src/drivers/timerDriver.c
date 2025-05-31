@@ -1,6 +1,5 @@
 #include "../../include/timerDriver.h"
 #include "../../include/io.h"
-#include "../../include/vga.h"
 #include <stdbool.h>
 
 // PIT (Programmable Interval Timer) constants

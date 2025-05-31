@@ -3,16 +3,16 @@
 #include "../include/string.h"
 #include "../include/memory/heap.h"
 #include "../include/fs/fat16.h"
-#include "../include/vga.h"
+#include "../include/drivers/vbe.h"
 
 // Replace the current external declaration with:
 extern struct modifier_state modifier_state;
 
 #define EDITOR_MAX_LINES 1000
 #define EDITOR_MAX_LINE_LENGTH 256
-#define EDITOR_EDITABLE_HEIGHT (VGA_HEIGHT - 1)  // Leave one line for status bar
+#define EDITOR_EDITABLE_HEIGHT (VBE_HEIGHT / 16 - 1)  // Leave one line for status bar
 #define LINE_NUMBER_GUTTER_WIDTH 4  // Increased from 2 to 4 to handle larger numbers
-#define LINE_NUMBER_COLOR VGA_COLOR_DARK_GREY  // Color for line numbers
+#define LINE_NUMBER_COLOR 0xFF555555  // Color for line numbers
 
 // Add this helper function at the top of the file, after the includes
 static void format_line_number(char* buffer, int width, int number) {
@@ -76,8 +76,8 @@ void editor_init(Editor* editor) {
     editor->modified = false;
     editor->filename = NULL;
     // Set Soft Theme colors
-    editor->text_color = VGA_COLOR_WHITE;
-    editor->bg_color = VGA_COLOR_BLACK;
+    editor->text_color = 0xFFFFFFFF;
+    editor->bg_color = 0x000000;
 }
 
 // Free editor resources
@@ -98,10 +98,7 @@ void editor_free(Editor* editor) {
 // Draw the editor interface
 void editor_draw(Editor* editor) {
     // Clear the screen
-    terminal_clear();
-    
-    // Set colors
-    terminal_setcolor(vga_entry_color(editor->text_color, editor->bg_color));
+    vbe_clear_screen(editor->bg_color);
     
     // Draw visible lines
     for (int i = 0; i < EDITOR_EDITABLE_HEIGHT; i++) {
@@ -113,37 +110,27 @@ void editor_draw(Editor* editor) {
             line_num_str[LINE_NUMBER_GUTTER_WIDTH] = '\0';
             
             // Draw line number in dark grey
-            terminal_setcolor(vga_entry_color(LINE_NUMBER_COLOR, editor->bg_color));
-            for (int j = 0; j < LINE_NUMBER_GUTTER_WIDTH; j++) {
-                terminal_putentryat(line_num_str[j], vga_entry_color(LINE_NUMBER_COLOR, editor->bg_color), j, i);
-            }
+            vbe_draw_string(0, i * 16, line_num_str, LINE_NUMBER_COLOR, &font_8x16);
             
             // Draw line content
-            terminal_setcolor(vga_entry_color(editor->text_color, editor->bg_color));
             char* line = editor->lines[line_num];
-            for (int j = 0; line[j] != '\0'; j++) {
-                terminal_putentryat(line[j], vga_entry_color(editor->text_color, editor->bg_color), 
-                                  j + LINE_NUMBER_GUTTER_WIDTH, i);
-            }
+            vbe_draw_string(LINE_NUMBER_GUTTER_WIDTH * 8, i * 16, line, editor->text_color, &font_8x16);
         }
     }
     
     // Draw status bar with white text on black background
-    terminal_setcolor(vga_entry_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK));
-    for (int i = 0; i < VGA_WIDTH; i++) {
-        terminal_putentryat(' ', vga_entry_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK), i, VGA_HEIGHT - 1);
-    }
+    vbe_draw_rect(0, (VBE_HEIGHT / 16 - 1) * 16, VBE_WIDTH, 16, 0x000000);
     
     // Show filename and modified status on the left
-    terminal_set_cursor(0, VGA_HEIGHT - 1);
-    terminal_writestring("-- ");
+    char status[256] = "-- ";
     if (editor->filename) {
-        terminal_writestring(editor->filename);
+        strcat(status, editor->filename);
     }
     if (editor->modified) {
-        terminal_writestring(" (modified)");
+        strcat(status, " (modified)");
     }
-    terminal_writestring(" -- ");
+    strcat(status, " -- ");
+    vbe_draw_string(0, (VBE_HEIGHT / 16 - 1) * 16, status, 0xFFFFFFFF, &font_8x16);
 
     // Add line and column information on the right
     char position_str[20];
@@ -153,18 +140,17 @@ void editor_draw(Editor* editor) {
     position_str[pos++] = 'L';
     position_str[pos++] = 'n';
     position_str[pos++] = ' ';
-    
     // Convert line number to string
     int line_num = editor->cursor_y + 1;
-    if (line_num >= 100) {
-        position_str[pos++] = '0' + (line_num / 100);
-        line_num %= 100;
+    char line_str[10];
+    int line_len = 0;
+    while (line_num > 0) {
+        line_str[line_len++] = '0' + (line_num % 10);
+        line_num /= 10;
     }
-    if (line_num >= 10) {
-        position_str[pos++] = '0' + (line_num / 10);
-        line_num %= 10;
+    while (--line_len >= 0) {
+        position_str[pos++] = line_str[line_len];
     }
-    position_str[pos++] = '0' + line_num;
     
     position_str[pos++] = ',';
     position_str[pos++] = ' ';
@@ -172,35 +158,22 @@ void editor_draw(Editor* editor) {
     position_str[pos++] = 'o';
     position_str[pos++] = 'l';
     position_str[pos++] = ' ';
-    
     // Convert column number to string
     int col_num = editor->cursor_x + 1;
-    if (col_num >= 100) {
-        position_str[pos++] = '0' + (col_num / 100);
-        col_num %= 100;
+    char col_str[10];
+    int col_len = 0;
+    while (col_num > 0) {
+        col_str[col_len++] = '0' + (col_num % 10);
+        col_num /= 10;
     }
-    if (col_num >= 10) {
-        position_str[pos++] = '0' + (col_num / 10);
-        col_num %= 10;
+    while (--col_len >= 0) {
+        position_str[pos++] = col_str[col_len];
     }
-    position_str[pos++] = '0' + col_num;
     position_str[pos] = '\0';
-
-    // Calculate position to display the line/col info
-    int right_pos = VGA_WIDTH - pos - 1;
-    terminal_set_cursor(right_pos, VGA_HEIGHT - 1);
-    terminal_writestring(position_str);
     
-    // Set cursor position relative to scroll offset, accounting for line number gutter
-    int display_y = editor->cursor_y - editor->scroll_offset;
-    if (display_y >= 0 && display_y < EDITOR_EDITABLE_HEIGHT) {
-        terminal_set_cursor(editor->cursor_x + LINE_NUMBER_GUTTER_WIDTH, display_y);
-        terminal_update_cursor();
-    } else {
-        // If cursor is not visible, place it at the end of the last visible line
-        terminal_set_cursor(LINE_NUMBER_GUTTER_WIDTH, EDITOR_EDITABLE_HEIGHT - 1);
-        terminal_update_cursor();
-    }
+    // Draw position string right-aligned
+    int pos_x = VBE_WIDTH - (strlen(position_str) * 8);
+    vbe_draw_string(pos_x, (VBE_HEIGHT / 16 - 1) * 16, position_str, 0xFFFFFFFF, &font_8x16);
 }
 
 // Handle a single character input
@@ -212,23 +185,14 @@ bool editor_handle_input(Editor* editor) {
         if (editor->filename) {
             if (editor_save_file(editor, editor->filename)) {
                 // Show save success message
-                terminal_set_cursor(0, VGA_HEIGHT - 1);
-                terminal_writestring("File saved successfully");
-                // Wait a moment to show the message
-                for (volatile int i = 0; i < 1000000; i++);
+                terminal_writestring("File saved successfully\n");
             } else {
                 // Show save error message
-                terminal_set_cursor(0, VGA_HEIGHT - 1);
-                terminal_writestring("Error saving file");
-                // Wait a moment to show the message
-                for (volatile int i = 0; i < 1000000; i++);
+                terminal_writestring("Error saving file\n");
             }
         } else {
             // Show no filename message
-            terminal_set_cursor(0, VGA_HEIGHT - 1);
-            terminal_writestring("No filename specified");
-            // Wait a moment to show the message
-            for (volatile int i = 0; i < 1000000; i++);
+            terminal_writestring("No filename specified\n");
         }
         return true;  // Continue editor loop
     }
@@ -237,10 +201,7 @@ bool editor_handle_input(Editor* editor) {
     if (c == 'q' && modifier_state.ctrl) {
         // If file is modified, show warning
         if (editor->modified) {
-            terminal_set_cursor(0, VGA_HEIGHT - 1);
-            terminal_writestring("Warning: File has unsaved changes. Press Ctrl+Q again to exit anyway.");
-            // Wait a moment to show the message
-            for (volatile int i = 0; i < 1000000; i++);
+            terminal_writestring("Warning: File has unsaved changes. Press Ctrl+Q again to exit anyway.\n");
             return true;  // Continue editor loop
         }
         return false;  // Exit editor loop
@@ -439,8 +400,8 @@ void editor_move_cursor(Editor* editor, int dx, int dy) {
     // Keep cursor within bounds
     if (editor->cursor_x < 0) editor->cursor_x = 0;
     if (editor->cursor_y < 0) editor->cursor_y = 0;
-    if (editor->cursor_x >= VGA_WIDTH) editor->cursor_x = VGA_WIDTH - 1;
-    if (editor->cursor_y >= VGA_HEIGHT - 1) editor->cursor_y = VGA_HEIGHT - 2;
+    if (editor->cursor_x >= VBE_WIDTH) editor->cursor_x = VBE_WIDTH - 1;
+    if (editor->cursor_y >= VBE_HEIGHT - 1) editor->cursor_y = VBE_HEIGHT - 2;
 }
 
 void editor_insert_char(Editor* editor, char c) {
@@ -468,87 +429,43 @@ void editor_insert_char(Editor* editor, char c) {
 
         // Draw only if the line is on screen
         if (display_y >= 0 && display_y < EDITOR_EDITABLE_HEIGHT) {
-            uint8_t color = vga_entry_color(editor->text_color, editor->bg_color);
-
             // Redraw the entire line from the modified position
-            for (int i = editor->cursor_x - 1; line[i] != '\0'; i++) {
-                terminal_putentryat(line[i], color, i + LINE_NUMBER_GUTTER_WIDTH, display_y);
-            }
+            vbe_draw_string(LINE_NUMBER_GUTTER_WIDTH * 8, display_y * 16, &line[editor->cursor_x - 1], editor->text_color, &font_8x16);
 
             // Clear the rest of the line visually
-            for (int i = strlen(line); i < VGA_WIDTH - LINE_NUMBER_GUTTER_WIDTH; i++) {
-                terminal_putentryat(' ', color, i + LINE_NUMBER_GUTTER_WIDTH, display_y);
+            for (int i = strlen(line); i < VBE_WIDTH / 8 - LINE_NUMBER_GUTTER_WIDTH; i++) {
+                vbe_draw_char((i + LINE_NUMBER_GUTTER_WIDTH) * 8, display_y * 16, ' ', editor->bg_color, &font_8x16);
             }
-
-            // Update hardware cursor position using screen-relative coordinates
-            terminal_set_cursor(editor->cursor_x + LINE_NUMBER_GUTTER_WIDTH, display_y);
-            terminal_update_cursor();
         }
     }
 }
 
 void editor_delete_char(Editor* editor) {
     if (editor->cursor_x > 0) {
-        // Normal backspace within the same line
         char* line = editor->lines[editor->cursor_y];
         int len = strlen(line);
+        
+        // Shift characters to the left
         memmove(&line[editor->cursor_x - 1], &line[editor->cursor_x], len - editor->cursor_x + 1);
+        
+        // Move cursor back
         editor->cursor_x--;
         editor->modified = true;
-    } else if (editor->cursor_y > 0) {
-        // Backspace at the beginning of a line - join with previous line
-        char* current_line = editor->lines[editor->cursor_y];
-        char* prev_line = editor->lines[editor->cursor_y - 1];
-        int prev_len = strlen(prev_line);
-        int current_len = strlen(current_line);
         
-        // Check if the combined length would exceed the maximum
-        if (prev_len + current_len < EDITOR_MAX_LINE_LENGTH) {
-            // Append current line to previous line
-            strcat(prev_line, current_line);
+        // Compute visible screen row
+        int display_y = editor->cursor_y - editor->scroll_offset;
+        
+        // Draw only if the line is on screen
+        if (display_y >= 0 && display_y < EDITOR_EDITABLE_HEIGHT) {
+            // Redraw the entire line from the modified position
+            vbe_draw_string(LINE_NUMBER_GUTTER_WIDTH * 8, display_y * 16, &line[editor->cursor_x], editor->text_color, &font_8x16);
             
-            // Move all lines up
-            for (int i = editor->cursor_y; i < editor->num_lines - 1; i++) {
-                strcpy(editor->lines[i], editor->lines[i + 1]);
+            // Clear the rest of the line visually
+            for (int i = strlen(line); i < VBE_WIDTH / 8 - LINE_NUMBER_GUTTER_WIDTH; i++) {
+                vbe_draw_char((i + LINE_NUMBER_GUTTER_WIDTH) * 8, display_y * 16, ' ', editor->bg_color, &font_8x16);
             }
-            
-            // Clear the last line
-            editor->lines[editor->num_lines - 1][0] = '\0';
-            
-            // Update editor state
-            editor->cursor_y--;
-            editor->cursor_x = prev_len;
-            editor->num_lines--;
-            editor->modified = true;
         }
     }
-
-    // Compute visible screen row
-    int display_y = editor->cursor_y - editor->scroll_offset;
-
-    // Draw only if the line is on screen
-    if (display_y >= 0 && display_y < EDITOR_EDITABLE_HEIGHT) {
-        uint8_t color = vga_entry_color(editor->text_color, editor->bg_color);
-        char* line = editor->lines[editor->cursor_y];
-        int line_len = strlen(line);  // Calculate line length before the loop
-
-        // Redraw the entire line from the modified position
-        for (int i = editor->cursor_x; line[i] != '\0'; i++) {
-            terminal_putentryat(line[i], color, i + LINE_NUMBER_GUTTER_WIDTH, display_y);
-        }
-
-        // Clear the rest of the line visually
-        for (int i = line_len; i < VGA_WIDTH - LINE_NUMBER_GUTTER_WIDTH; i++) {
-            terminal_putentryat(' ', color, i + LINE_NUMBER_GUTTER_WIDTH, display_y);
-        }
-
-        // Update hardware cursor position using screen-relative coordinates
-        terminal_set_cursor(editor->cursor_x + LINE_NUMBER_GUTTER_WIDTH, display_y);
-        terminal_update_cursor();
-    }
-
-    // Add this line after updating cursor position
-    editor_adjust_scroll(editor);
 }
 
 void editor_new_line(Editor* editor) {
@@ -583,7 +500,7 @@ bool editor_create_file(const char* filename) {
         editor.modified = true;
         return true;
     } else {
-        terminal_writestring("Failed to create file\n");
+        vbe_draw_string(0, (VBE_HEIGHT / 16 - 1) * 16, "Failed to create file", 0xFFFFFFFF, &font_8x16);
         editor_free(&editor);
         return false;
     }
@@ -598,7 +515,7 @@ void editor_edit_command(const char* filename) {
     if (!editor_load_file(&editor, filename)) {
         // If file doesn't exist, create a new one
         if (!fat16_create_file(filename)) {
-            terminal_writestring("Failed to create file\n");
+            vbe_draw_string(0, (VBE_HEIGHT / 16 - 1) * 16, "Failed to create file", 0xFFFFFFFF, &font_8x16);
             editor_free(&editor);
             return;
         }
@@ -613,6 +530,6 @@ void editor_edit_command(const char* filename) {
     editor_free(&editor);
     
     // Clear the screen
-    terminal_clear();
+    vbe_clear_screen(0x000000);
     draw_header();
 }

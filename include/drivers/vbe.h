@@ -2,8 +2,18 @@
 #define VBE_H
 
 #include <stdint.h>
+#include <stddef.h>
+#include <stdbool.h>
 #include "../multiboot.h"
 #include "font_8x16.h"
+
+// VBE default dimensions
+#define VBE_WIDTH 1024
+#define VBE_HEIGHT 768
+
+// Global cursor position
+extern int vbe_cursor_x;
+extern int vbe_cursor_y;
 
 // VBE Information Block
 struct vbe_info_block {
@@ -85,5 +95,25 @@ void vbe_init_text_context(struct vbe_text_context* ctx, int start_x, int start_
 void vbe_draw_string_wrapped(struct vbe_text_context* ctx, const char* str, int max_width);
 void vbe_draw_string_scroll(struct vbe_text_context* ctx, const char* str, int max_width, int max_height);
 uint32_t vbe_get_pixel(int x, int y);
+
+// Terminal color functions
+void vbe_setcolor(uint32_t color);
+uint32_t vbe_getcolor(void);
+
+// Cursor functions
+void vbe_set_cursor(int x, int y);
+
+// Terminal-compatible wrapper functions
+void terminal_initialize(void);
+void terminal_clear(void);
+void terminal_putchar(char c);
+void terminal_putentryat(char c, uint8_t color, size_t x, size_t y);
+void terminal_writestring(const char* data);
+void terminal_writehex(uint32_t n);
+void terminal_get_cursor(size_t* x, size_t* y);
+void terminal_update_cursor(void);
+
+// ANSI support
+void ansi_set_enabled(bool enabled);
 
 #endif // VBE_H 

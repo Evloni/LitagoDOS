@@ -19,6 +19,9 @@ char get_scancode(void);
 char keyboard_getchar(void);
 int keyboard_getkey(void);
 
+// Check if there is data in the keyboard buffer
+bool keyboard_buffer_has_data(void);
+
 // Modifier state structure
 struct modifier_state {
     bool shift;

@@ -1,6 +1,6 @@
 #include "../../include/memory/pmm.h"
 #include "../../include/memory/memory_map.h"
-#include "../../include/vga.h"
+#include "../../include/drivers/vbe.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>

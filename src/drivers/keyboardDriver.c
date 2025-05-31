@@ -1,6 +1,6 @@
 #include "../../include/keyboardDriver.h"
 #include "../../include/io.h"
-#include "../../include/vga.h"
+#include "../../include/drivers/vbe.h"
 #include "../../include/idt.h"
 #include "../../include/string.h"
 #include "../../include/system.h"
@@ -36,7 +36,6 @@ static const char scancode_to_ascii[] = {
     0,  0,   0,   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0            // 0x54-0x61
 };
 
-
 // Standard PC keyboard scancode set 1 mapping (shifted)
 static const char scancode_to_ascii_shift[] = {
     0,  0,  '!', '"', '#', '¤', '%', '&', '/', '(', ')', '=', '?', '`', '\b',  // 0x00-0x0E
@@ -47,7 +46,6 @@ static const char scancode_to_ascii_shift[] = {
     0,  0,   0,   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,           // 0x46-0x53
     0,  0,   0,   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0            // 0x54-0x61
 };
-
 
 // Add a character to the keyboard buffer
 static void keyboard_buffer_add(char c) {
@@ -82,6 +80,11 @@ char keyboard_getchar(void) {
         }
         __asm__("hlt");
     }
+}
+
+// Check if there is data in the keyboard buffer
+bool keyboard_buffer_has_data(void) {
+    return keyboard_buffer_head != keyboard_buffer_tail;
 }
 
 bool keyboard_init(void) {

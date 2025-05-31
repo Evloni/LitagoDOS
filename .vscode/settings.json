@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "timerdriver.h": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "vbe.h": "c"
     }
 }

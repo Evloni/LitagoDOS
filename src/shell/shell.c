@@ -1,5 +1,5 @@
 #include "../../include/shell.h"
-#include "../../include/vga.h"
+#include "../../include/drivers/vbe.h"
 #include "../../include/keyboardDriver.h"
 #include "../../include/string.h"
 #include "../../include/tests/memtest.h"
@@ -12,9 +12,16 @@
 #include "../../include/string.h"
 #include "../../include/editor.h"
 #include "../../include/drivers/iso_fs.h"
+#include "../../include/timerDriver.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
+
+// VBE display dimensions
+#define VBE_WIDTH 1024  // Assuming 1024x768 resolution
+#define VBE_HEIGHT 768
+#define VBE_BPP 32     // Bits per pixel
+#define VBE_PITCH (VBE_WIDTH * (VBE_BPP / 8))
 
 // External declarations for FAT16 variables
 extern fat16_boot_sector_t boot_sector;
@@ -22,10 +29,10 @@ extern uint32_t root_dir_sectors;
 extern uint32_t root_dir_start_sector;
 
 // Shell visual elements
-#define PROMPT_COLOR VGA_COLOR_LIGHT_GREEN
-#define TEXT_COLOR VGA_COLOR_WHITE
-#define HEADER_COLOR VGA_COLOR_LIGHT_CYAN
-#define BORDER_COLOR VGA_COLOR_LIGHT_BLUE
+#define PROMPT_COLOR 0xFF00FF00  // Light Green
+#define TEXT_COLOR 0xFFFFFFFF    // White
+#define HEADER_COLOR 0xFF00FFFF  // Light Cyan
+#define BORDER_COLOR 0xFF0000FF  // Light Blue
 
 // Track the prompt position
 size_t prompt_x = 0;
@@ -47,6 +54,10 @@ static const char* builtin_commands[] = {
     "mkfile", "rm", "clear", "edit", "cursortest"
 };
 static const int num_builtin_commands = sizeof(builtin_commands) / sizeof(builtin_commands[0]);
+
+// Shell cursor state
+static int prev_cursor_x = -1;
+static int prev_cursor_y = -1;
 
 // Function to calculate Levenshtein distance between two strings
 static int levenshtein_distance(const char* s1, const char* s2) {
@@ -104,53 +115,19 @@ static const char* find_closest_command(const char* input) {
 }
 
 void draw_header() {
-    if (ansi_is_enabled()) {
-        // Use ANSI escape sequences for colors
-        terminal_writestring("\x1B[36m");  // Cyan for header
-        terminal_set_cursor(2, 1);
-        terminal_writestring("+------------------------------------------------------------------+");
-        terminal_set_cursor(2, 2);
-        terminal_writestring("|                                                                  |");
-        terminal_set_cursor(2, 3);
-        terminal_writestring("|                    Litago Operating System                       |");
-        terminal_set_cursor(2, 4);
-        terminal_writestring("|                                                                  |");
-        terminal_set_cursor(2, 5);
-        terminal_writestring("+------------------------------------------------------------------+");
-        terminal_writestring("\x1B[0m");  // Reset colors
-        terminal_writestring("\n  Type 'help' for a list of commands\n");
-    } else {
-        // Use VGA colors directly
-        terminal_setcolor(HEADER_COLOR);
-        terminal_set_cursor(2, 1);
-        terminal_writestring("+------------------------------------------------------------------+");
-        terminal_set_cursor(2, 2);
-        terminal_writestring("|                                                                  |");
-        terminal_set_cursor(2, 3);
-        terminal_writestring("|                    Litago Operating System                       |");
-        terminal_set_cursor(2, 4);
-        terminal_writestring("|                                                                  |");
-        terminal_set_cursor(2, 5);
-        terminal_writestring("+------------------------------------------------------------------+");
-        terminal_writestring("\n  Type 'help' for a list of commands\n");
-    }
+    // Use VBE colors directly
+    vbe_draw_string(0, 0, "+------------------------------------------------------------------+", BORDER_COLOR, &font_8x16);
+    vbe_draw_string(0, 16, "|                                                                  |", BORDER_COLOR, &font_8x16);
+    vbe_draw_string(0, 32, "|                    Litago Operating System                       |", HEADER_COLOR, &font_8x16);
+    vbe_draw_string(0, 48, "|                                                                  |", BORDER_COLOR, &font_8x16);
+    vbe_draw_string(0, 64, "+------------------------------------------------------------------+", BORDER_COLOR, &font_8x16);
+    vbe_draw_string(0, 96, "  Type 'help' for a list of commands\n", TEXT_COLOR, &font_8x16);
 }
 
 void draw_prompt() {
-    if (ansi_is_enabled()) {
-        // Use ANSI escape sequences for colors
-        terminal_writestring("\x1B[32m");  // Green for prompt
-        terminal_writestring("\n[litago] ");
-        terminal_writestring("\x1B[37m");  // White for text
-    } else {
-        // Use VGA colors directly
-        terminal_setcolor(PROMPT_COLOR);
-        terminal_writestring("\n[litago] ");
-        terminal_setcolor(TEXT_COLOR);
-    }
-    
-    // Store the current cursor position after drawing the prompt
-    terminal_get_cursor(&prompt_x, &prompt_y);
+    // Use VBE colors directly
+    vbe_draw_string(0, vbe_cursor_y, "[litago] ", PROMPT_COLOR, &font_8x16);
+    vbe_cursor_x = 9 * 8;  // 9 characters * 8 pixels per character
 }
 
 static void shutdown() {
@@ -559,6 +536,9 @@ static void handle_command(const char* command) {
     } else if (strcmp(cmd_name, "clear") == 0) {
         terminal_clear();
         draw_header();  // Redraw the header after clearing
+        vbe_cursor_x = 0;
+        vbe_cursor_y = 125; // or wherever you want the prompt to start
+        draw_prompt();  // Set cursor and draw prompt at the correct position
     } else if (strcmp(cmd_name, "edit") == 0) {
         const char* filename = command + strlen(cmd_name);
         while (*filename == ' ') filename++;  // Skip spaces
@@ -587,165 +567,100 @@ static void handle_command(const char* command) {
 
 // Initialize shell
 void shell_init(void) {
+    // Clear screen and draw header
+    vbe_clear_screen(0x00000000);
+    // Initialize terminal first
+    if (!vbe_initialize()) {
+        terminal_writestring("VBE initialization failed\n");
+        // If terminal initialization fails, we can't continue
+        while(1) {
+            __asm__("hlt");  // Halt the system
+        }
+    }
+    
+    // Clear command buffer and history
     memset(cmd_buffer, 0, MAX_CMD_LENGTH);
     memset(cmd_history, 0, sizeof(cmd_history));
     history_count = 0;
     history_index = -1;  // Start at -1 to indicate no history position
     cmd_index = 0;
-    ansi_set_enabled(false);
     
     draw_header();
+    
+    // Move cursor below header
+    vbe_cursor_x = 0;
+    vbe_cursor_y = 125; // or 0, or wherever you want the prompt to start
+    prev_cursor_x = -1;
+    prev_cursor_y = -1;
+    // Draw initial prompt
+    draw_prompt();
 }
 
 // Start shell
 void shell_start(void) {
-    terminal_clear();
     shell_init();
+    // Initialize command buffer
+    memset(cmd_buffer, 0, MAX_CMD_LENGTH);
+    cmd_index = 0;
     
+    // Draw initial header and prompt
+    draw_header();
+    draw_prompt();
+    
+    // Main shell loop
     while (1) {
-        // Display prompt
-        draw_prompt();
-        
-        // Reset command buffer
-        memset(cmd_buffer, 0, MAX_CMD_LENGTH);
-        cmd_index = 0;
-        history_index = -1;  // Reset history index for new command
-        
-        // Read command
-        while (1) {
-            int key = keyboard_getchar();
-            
-            if (key == '\t') {  // Tab key
-                handle_tab_completion();
-                continue;
-            }
+        // Check for keyboard input
+        if (keyboard_buffer_has_data()) {
+            char c = keyboard_getchar();
             
             // Handle special keys
-            if (key == '\033') {  // Escape sequence
-                char next = keyboard_getchar();
-                if (next == '[') {  // Control sequence introducer
-                    char code = keyboard_getchar();
-                    switch (code) {
-                        case 'A':  // Up arrow - previous command
-                            if (history_count > 0) {
-                                // Clear current line
-                                clear_input_line(cmd_index);
-                                
-                                // Move to previous command in history
-                                if (history_index == -1) {
-                                    history_index = history_count - 1;
-                                } else if (history_index > 0) {
-                                    history_index--;
-                                }
-                                
-                                // Copy command from history
-                                strncpy(cmd_buffer, cmd_history[history_index], MAX_CMD_LENGTH);
-                                cmd_index = strlen(cmd_buffer);
-                                
-                                // Display the command
-                                terminal_writestring(cmd_buffer);
-                                // Update cursor position
-                                terminal_get_cursor(&prompt_x, &prompt_y);
-                            }
-                            break;
-                        case 'B':  // Down arrow - next command
-                            if (history_index != -1) {
-                                int prev_len = cmd_index;
-                                clear_input_line(cmd_index);
-                                cmd_index = 0;
-                                // Move to next command in history
-                                if (history_index < history_count - 1) {
-                                    history_index++;
-                                    strncpy(cmd_buffer, cmd_history[history_index], MAX_CMD_LENGTH);
-                                } else {
-                                    history_index = -1;
-                                    cmd_buffer[0] = '\0';
-                                }
-                                cmd_index = strlen(cmd_buffer);
-                                terminal_writestring(cmd_buffer);
-                                // If the new command is shorter, overwrite the rest with spaces
-                                for (int i = cmd_index; i < prev_len; i++) {
-                                    terminal_putchar(' ');
-                                }
-                                // Move cursor back to end of new command
-                                for (int i = cmd_index; i < prev_len; i++) {
-                                    if (terminal_column > 0) terminal_column--;
-                                    else if (terminal_row > 0) { terminal_row--; terminal_column = VGA_WIDTH - 1; }
-                                    terminal_update_cursor();
-                                }
-                                terminal_get_cursor(&prompt_x, &prompt_y);
-                            }
-                            break;
-                    }
-                }
-            }
-            else if (key == '\b') {  // Backspace
+            if (c == '\b') {  // Backspace
                 if (cmd_index > 0) {
                     cmd_index--;
                     cmd_buffer[cmd_index] = '\0';
-                    // Move cursor left
-                    if (terminal_column > 0) {
-                        terminal_column--;
-                    } else if (terminal_row > 0) {
-                        terminal_row--;
-                        terminal_column = VGA_WIDTH - 1;
-                    }
-                    terminal_update_cursor();
-                    // Erase character
-                    terminal_putentryat(' ', vga_entry_color(TEXT_COLOR, VGA_COLOR_BLACK), terminal_column, terminal_row);
-                    terminal_update_cursor();
+                    vbe_cursor_x -= 8;  // Move cursor back one character
+                    vbe_draw_rect(vbe_cursor_x, vbe_cursor_y, 8, font_8x16.height, 0x00000000);
                 }
-            }
-            else if (key == '\n') {  // Enter
+            } else if (c == '\n') {  // Enter
                 terminal_putchar('\n');
-                break;
-            }
-            else if (key >= 32 && key <= 126 && cmd_index < MAX_CMD_LENGTH - 1) {
-                // Insert character at current position
-                cmd_buffer[cmd_index] = (char)key;
-                terminal_putchar((char)key);
-                cmd_index++;
-                // Update cursor position after each character
-                terminal_get_cursor(&prompt_x, &prompt_y);
-            }
-        }
-        
-        // Add command to history if it's not empty
-        if (cmd_index > 0) {
-            // Shift history down if we're at max capacity
-            if (history_count == MAX_HISTORY) {
-                for (int i = 0; i < MAX_HISTORY - 1; i++) {
-                    strncpy(cmd_history[i], cmd_history[i + 1], MAX_CMD_LENGTH);
+                if (cmd_index > 0) {
+                    cmd_buffer[cmd_index] = '\0';
+                    handle_command(cmd_buffer);
+                    cmd_index = 0;
+                    memset(cmd_buffer, 0, MAX_CMD_LENGTH);
                 }
-                history_count--;
+                draw_prompt();
+            } else if (c == '\t') {  // Tab
+                handle_tab_completion();
+            } else if (c >= 32 && c <= 126) {  // Printable characters
+                if (cmd_index < MAX_CMD_LENGTH - 1) {
+                    cmd_buffer[cmd_index++] = c;
+                    terminal_putchar(c);
+                }
             }
-            
-            // Add new command to history
-            strncpy(cmd_history[history_count], cmd_buffer, MAX_CMD_LENGTH);
-            history_count++;
         }
         
-        // Execute command
-        handle_command(cmd_buffer);
+        // Small delay to prevent CPU hogging
+        for (volatile int i = 0; i < 1000; i++);
     }
 }
 
-// Add this helper function near the top (after includes and globals)
+// Helper function to clear input line
 void clear_input_line(int length) {
     // Move cursor to the start of the input line
     while (length > 0) {
-        if (terminal_column > 0) {
-            terminal_column--;
-        } else if (terminal_row > 0) {
-            terminal_row--;
-            terminal_column = VGA_WIDTH - 1;
+        if (prompt_x > 0) {
+            prompt_x--;
+        } else if (prompt_y > 0) {
+            prompt_y--;
+            prompt_x = VBE_WIDTH / 8 - 1;  // Assuming 8x16 font
         }
         terminal_update_cursor();
         length--;
     }
     // Overwrite with spaces
     for (int i = 0; i < length; i++) {
-        terminal_putentryat(' ', vga_entry_color(TEXT_COLOR, VGA_COLOR_BLACK), terminal_column + i, terminal_row);
+        terminal_putentryat(' ', TEXT_COLOR, prompt_x + i, prompt_y);
     }
     // Move cursor back to start
     terminal_update_cursor();
