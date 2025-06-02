@@ -42,3 +42,4 @@ grub.cfg
 *.a
 *.so
 *.mod.c
+isodir/boot/kernel.bin

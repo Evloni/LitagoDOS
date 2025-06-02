@@ -248,3 +248,15 @@ int snprintf(char* str, size_t size, const char* format, ...) {
     va_end(ap);
     return ret;
 }
+
+// Find last occurrence of character in string
+char* strrchr(const char* str, int c) {
+    const char* last = NULL;
+    while (*str) {
+        if (*str == (char)c) {
+            last = str;
+        }
+        str++;
+    }
+    return (char*)last;
+}

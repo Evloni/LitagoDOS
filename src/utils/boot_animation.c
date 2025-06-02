@@ -178,7 +178,7 @@ void show_boot_animation(void) {
         draw_loading_bar(bar_x, bar_y, bar_width, bar_height, i);
         
         // Add a small delay
-        for (volatile int j = 0; j < 100000000; j++);
+        for (volatile int j = 0; j < 10000000; j++);
     }
     
     // Add a final delay before continuing

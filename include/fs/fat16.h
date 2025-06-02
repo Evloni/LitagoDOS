@@ -54,14 +54,19 @@ bool fat16_init(void);
 bool fat16_read_root_dir(void);
 int fat16_read_file(const char* filename, void* buffer, uint32_t max_size);
 bool fat16_write_file(const char* filename, const void* buffer, uint32_t size);
-bool fat16_create_file(const char* filename);
+bool fat16_create_file(const char* filename, uint16_t current_cluster);
 bool fat16_delete_file(const char* filename);
 bool fat16_list_directory(const char* path);
 bool fat16_remove_file(const char* filename);
+
+// Directory functions
+bool fat16_read_directory(uint16_t cluster, fat16_dir_entry_t* entries, int max_entries);
+bool fat16_change_directory(const char* path, uint16_t* current_cluster);
 
 // Helper functions
 uint16_t fat16_get_next_cluster(uint16_t cluster);
 bool fat16_is_end_of_chain(uint16_t cluster);
 uint32_t fat16_cluster_to_lba(uint16_t cluster);
+const char* get_file_type(const fat16_dir_entry_t* entry);
 
 #endif // FAT16_H 

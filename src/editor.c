@@ -4,6 +4,9 @@
 #include "../include/memory/heap.h"
 #include "../include/fs/fat16.h"
 #include "../include/drivers/vbe.h"
+#include "../include/shell.h"  // This contains the current_cluster declaration
+#include <string.h>
+#include <stdlib.h>
 
 // Replace the current external declaration with:
 extern struct modifier_state modifier_state;
@@ -495,7 +498,7 @@ bool editor_create_file(const char* filename) {
     editor_init(&editor);
     
     // Try to create the file
-    if (fat16_create_file(filename)) {
+    if (fat16_create_file(filename, current_cluster)) {
         editor.filename = strdup(filename);
         editor.modified = true;
         return true;
@@ -514,7 +517,7 @@ void editor_edit_command(const char* filename) {
     // Try to load the file if it exists
     if (!editor_load_file(&editor, filename)) {
         // If file doesn't exist, create a new one
-        if (!fat16_create_file(filename)) {
+        if (!fat16_create_file(filename, current_cluster)) {
             vbe_draw_string(0, (VBE_HEIGHT / 16 - 1) * 16, "Failed to create file", 0xFFFFFFFF, &font_8x16);
             editor_free(&editor);
             return;

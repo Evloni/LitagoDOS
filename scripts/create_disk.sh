@@ -16,9 +16,15 @@ sudo losetup $LOOP_DEV fat16.img
 # Mount the image
 sudo mount -t vfat $LOOP_DEV mnt
 
-# Create some test files
-echo "Hello, World!" | sudo tee mnt/test.txt
-echo "This is a test file" | sudo tee mnt/readme.txt
+# Create directory structure
+sudo mkdir -p mnt/SYSTEM
+sudo mkdir -p mnt/DRIVERS
+sudo mkdir -p mnt/APPS
+sudo mkdir -p mnt/USER
+
+# Create placeholder files
+echo "Welcome to LitagoDOS!" | sudo tee mnt/USER/README.TXT
+echo "Hello World!" | sudo tee mnt/USER/HELLOWORLD.TXT
 
 # Unmount the image
 sudo umount mnt
@@ -26,4 +32,7 @@ sudo umount mnt
 # Detach the loop device
 sudo losetup -d $LOOP_DEV
 
-echo "Disk image created successfully!"
+echo "Disk image created successfully with the specified file structure!"
+
+
+

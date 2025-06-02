@@ -38,6 +38,51 @@ extern uint32_t root_dir_start_sector;
 size_t prompt_x = 0;
 size_t prompt_y = 0;
 
+// Current directory tracking
+#define MAX_PATH_LENGTH 256
+static char current_directory[MAX_PATH_LENGTH] = "/";
+
+// Function to get current directory
+const char* get_current_directory(void) {
+    return current_directory;
+}
+
+// Function to set current directory
+bool set_current_directory(const char* path) {
+    if (!path || path[0] == '\0') {
+        return false;
+    }
+    
+    // Try to change directory
+    if (fat16_change_directory(path, &current_cluster)) {
+        // Update current directory path
+        if (strcmp(path, "/") == 0) {
+            strcpy(current_directory, "/");
+        } else if (strcmp(path, "..") == 0) {
+            // Remove the last directory from the path
+            char* last_slash = strrchr(current_directory, '/');
+            if (last_slash) {
+                if (last_slash == current_directory) {
+                    // If we're at /dir, go back to /
+                    current_directory[1] = '\0';
+                } else {
+                    // Otherwise, truncate at the last slash
+                    *last_slash = '\0';
+                }
+            }
+        } else {
+            // For now, just append the directory name
+            if (strcmp(current_directory, "/") != 0) {
+                strcat(current_directory, "/");
+            }
+            strcat(current_directory, path);
+        }
+        return true;
+    }
+    
+    return false;
+}
+
 #define MAX_CMD_LENGTH 256
 #define MAX_HISTORY 10
 
@@ -51,7 +96,7 @@ static int cmd_index = 0;
 static const char* builtin_commands[] = {
     "help", "ls", "cat", "echo", "shutdown", "reboot", "memtest",
     "memtest2", "memstats", "syscall", "version", "progtest",
-    "mkfile", "rm", "clear", "edit", "cursortest"
+    "mkfile", "rm", "clear", "edit", "cursortest", "cd"
 };
 static const int num_builtin_commands = sizeof(builtin_commands) / sizeof(builtin_commands[0]);
 
@@ -125,9 +170,20 @@ void draw_header() {
 }
 
 void draw_prompt() {
-    // Use VBE colors directly
-    vbe_draw_string(0, vbe_cursor_y, "[litago] ", PROMPT_COLOR, &font_8x16);
-    vbe_cursor_x = 9 * 8;  // 9 characters * 8 pixels per character
+    // Calculate total prompt length
+    int prompt_len = 8 + strlen(current_directory) + 2;  // "[litago:" + dir + "] "
+    
+    // Clear the line first
+    vbe_draw_rect(0, vbe_cursor_y, VBE_WIDTH, font_8x16.height, 0x00000000);
+    
+    // Draw the prompt
+    vbe_draw_string(0, vbe_cursor_y, "[litago:", PROMPT_COLOR, &font_8x16);
+    vbe_draw_string(8 * 8, vbe_cursor_y, current_directory, PROMPT_COLOR, &font_8x16);
+    vbe_draw_string((8 + strlen(current_directory)) * 8, vbe_cursor_y, "] ", PROMPT_COLOR, &font_8x16);
+    
+    // Update cursor position
+    vbe_cursor_x = prompt_len * 8;  // 8 pixels per character
+    vbe_cursor_y = vbe_cursor_y;    // Keep the same line
 }
 
 static void shutdown() {
@@ -363,6 +419,7 @@ static void handle_command(const char* command) {
     if (strcmp(cmd_name, "help") == 0) {
         terminal_writestring("Available commands:\n");
         terminal_writestring("  ls [path]      - List directory contents\n");
+        terminal_writestring("  cd [path]      - Change directory\n");
         terminal_writestring("  cat <file>     - Display file contents\n");
         terminal_writestring("  echo <text>    - Display text\n");
         terminal_writestring("  help           - Show this help message\n");
@@ -489,9 +546,72 @@ static void handle_command(const char* command) {
         const char* path = command + strlen(cmd_name);
         while (*path == ' ') path++;  // Skip spaces
         
-        if (!fat16_list_directory(path)) {
-            terminal_writestring("Failed to list directory\n");
+        // Read current directory
+        fat16_dir_entry_t* dir_entries = (fat16_dir_entry_t*)malloc(root_dir_sectors * boot_sector.bytes_per_sector);
+        if (!dir_entries) {
+            terminal_writestring("Failed to allocate memory\n");
+            return;
         }
+
+        if (fat16_read_directory(current_cluster, dir_entries, boot_sector.root_entries)) {
+            // Print header
+            terminal_writestring("Name           Size    Type\n");
+            terminal_writestring("----------------------------------------\n");
+
+            for (int i = 0; i < boot_sector.root_entries; i++) {
+                if (dir_entries[i].filename[0] == 0x00) break;
+                if (dir_entries[i].filename[0] == 0xE5) continue;
+                if ((dir_entries[i].attributes & FAT16_ATTR_LONG_NAME) == FAT16_ATTR_LONG_NAME) continue;
+                if (dir_entries[i].attributes & FAT16_ATTR_VOLUME_ID) continue;
+
+                // Format filename
+                char name[13] = {0};
+                int name_idx = 0;
+                for (int j = 0; j < 8; j++) {
+                    if (dir_entries[i].filename[j] != ' ') {
+                        name[name_idx++] = dir_entries[i].filename[j];
+                    }
+                }
+                if (dir_entries[i].extension[0] != ' ') {
+                    name[name_idx++] = '.';
+                    for (int j = 0; j < 3; j++) {
+                        if (dir_entries[i].extension[j] != ' ') {
+                            name[name_idx++] = dir_entries[i].extension[j];
+                        }
+                    }
+                }
+                name[name_idx] = '\0';
+
+                // Print name, padded to 16 chars
+                terminal_writestring(name);
+                int name_len = strlen(name);
+                for (int s = name_len; s < 16; s++) {
+                    terminal_putchar(' ');
+                }
+
+                // Print size or blank for directories
+                if (dir_entries[i].attributes & FAT16_ATTR_DIRECTORY) {
+                    terminal_writestring("        ");
+                } else {
+                    char size_str[16];
+                    itoa(dir_entries[i].file_size, size_str, 10);
+                    terminal_writestring(size_str);
+                    int size_len = strlen(size_str);
+                    for (int s = size_len; s < 8; s++) {
+                        terminal_putchar(' ');
+                    }
+                }
+
+                // Print type
+                const char* type_str = get_file_type(&dir_entries[i]);
+                terminal_writestring(type_str);
+                terminal_putchar('\n');
+            }
+        } else {
+            terminal_writestring("Failed to read directory\n");
+        }
+
+        free(dir_entries);
     } else if (strcmp(cmd_name, "cat") == 0) {
         const char* filename = command + strlen(cmd_name);
         while (*filename == ' ') filename++;  // Skip spaces
@@ -528,7 +648,7 @@ static void handle_command(const char* command) {
             return;
         }
 
-        if (fat16_create_file(filename)) {
+        if (fat16_create_file(filename, current_cluster)) {
             terminal_writestring("File created successfully\n");
         } else {
             terminal_writestring("Failed to create file\n");
@@ -561,6 +681,22 @@ static void handle_command(const char* command) {
             terminal_writestring("File removed successfully\n");
         } else {
             terminal_writestring("Failed to remove file\n");
+        }
+    } else if (strcmp(cmd_name, "cd") == 0) {
+        const char* path = command + strlen(cmd_name);
+        while (*path == ' ') path++;  // Skip spaces
+        
+        if (*path == '\0') {
+            // If no path provided, show current directory
+            terminal_writestring(current_directory);
+            terminal_writestring("\n");
+            return;
+        }
+        
+        if (set_current_directory(path)) {
+            // Directory changed successfully
+        } else {
+            terminal_writestring("Failed to change directory\n");
         }
     }
 }
@@ -670,9 +806,10 @@ void shell_start(void) {
                                     strcpy(cmd_buffer, cmd_history[history_index]);
                                     cmd_index = strlen(cmd_buffer);
                                     
-                                    // Display the command
-                                    vbe_draw_string(9 * 8, current_y, cmd_buffer, TEXT_COLOR, &font_8x16);
-                                    vbe_cursor_x = (9 + cmd_index) * 8;  // Update cursor position
+                                    // Redraw prompt and command
+                                    draw_prompt();
+                                    vbe_draw_string(vbe_cursor_x, current_y, cmd_buffer, TEXT_COLOR, &font_8x16);
+                                    vbe_cursor_x = vbe_cursor_x + (cmd_index * 8);  // Update cursor position
                                     vbe_cursor_y = current_y;
                                 }
                             } else if (code == 'B') {  // Down arrow
@@ -692,11 +829,11 @@ void shell_start(void) {
                                         memset(cmd_buffer, 0, MAX_CMD_LENGTH);
                                     }
                                     
-                                    // Update display
-                                    cmd_index = strlen(cmd_buffer);
+                                    // Redraw prompt and command
+                                    draw_prompt();
                                     if (cmd_index > 0) {
-                                        vbe_draw_string(9 * 8, current_y, cmd_buffer, TEXT_COLOR, &font_8x16);
-                                        vbe_cursor_x = (9 + cmd_index) * 8;  // Update cursor position
+                                        vbe_draw_string(vbe_cursor_x, current_y, cmd_buffer, TEXT_COLOR, &font_8x16);
+                                        vbe_cursor_x = vbe_cursor_x + (cmd_index * 8);  // Update cursor position
                                         vbe_cursor_y = current_y;
                                     }
                                 }
