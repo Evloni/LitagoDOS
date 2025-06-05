@@ -40,6 +40,15 @@ typedef struct {
     uint32_t file_size;
 } __attribute__((packed)) fat16_dir_entry_t;
 
+// FAT16 File structure
+struct fat16_file {
+    uint16_t starting_cluster;  // First cluster of the file
+    uint32_t size;             // File size in bytes
+    uint32_t position;         // Current position in file
+    uint16_t current_cluster;  // Current cluster being read
+    uint32_t cluster_offset;   // Offset within current cluster
+};
+
 // File attributes
 #define FAT16_ATTR_READ_ONLY  0x01
 #define FAT16_ATTR_HIDDEN     0x02
@@ -68,5 +77,10 @@ uint16_t fat16_get_next_cluster(uint16_t cluster);
 bool fat16_is_end_of_chain(uint16_t cluster);
 uint32_t fat16_cluster_to_lba(uint16_t cluster);
 const char* get_file_type(const fat16_dir_entry_t* entry);
+
+// File operations
+int fat16_open_file(const char* filename, struct fat16_file* file);
+void fat16_close_file(struct fat16_file* file);
+uint32_t fat16_get_file_size(const char* filename);
 
 #endif // FAT16_H 

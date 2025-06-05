@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include "../multiboot.h"
 #include "font_8x16.h"
+#include "bdf_font.h"
 
 // VBE default dimensions
 #define VBE_WIDTH 1024
@@ -115,5 +116,15 @@ void terminal_update_cursor(void);
 
 // ANSI support
 void ansi_set_enabled(bool enabled);
+
+// BDF font drawing functions
+void vbe_draw_char_bdf(int x, int y, char c, uint32_t color, const struct bdf_font* font);
+void vbe_draw_string_bdf(int x, int y, const char* str, uint32_t color, const struct bdf_font* font);
+void vbe_draw_string_centered_bdf(int y, const char* str, uint32_t color, const struct bdf_font* font);
+
+// Font loader drawing functions
+void vbe_draw_char_font_loader(int x, int y, char c, uint32_t color);
+void vbe_draw_string_font_loader(int x, int y, const char* str, uint32_t color);
+void vbe_draw_string_centered_font_loader(int y, const char* str, uint32_t color);
 
 #endif // VBE_H 

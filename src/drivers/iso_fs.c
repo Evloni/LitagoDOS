@@ -1,6 +1,7 @@
 #include "../../include/drivers/iso_fs.h"
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 
 // The filesystem image will be loaded at this address
 static uint32_t fs_base = ISO_FS_BASE;
@@ -28,6 +29,7 @@ void iso_fs_set_size(uint32_t size) {
 bool iso_fs_read_sectors(uint32_t lba, uint8_t sectors, void* buffer) {
     // Validate parameters
     if (!buffer || sectors == 0) {
+        terminal_writestring("ISO: Invalid parameters for read\n");
         return false;
     }
 
@@ -37,6 +39,7 @@ bool iso_fs_read_sectors(uint32_t lba, uint8_t sectors, void* buffer) {
 
     // Check if the read would exceed the filesystem size
     if (fs_size > 0 && (addr + size > fs_base + fs_size)) {
+        terminal_writestring("ISO: Read would exceed filesystem size\n");
         return false;
     }
 
@@ -76,6 +79,20 @@ bool iso_fs_write_sectors(uint32_t lba, uint8_t sectors, const void* buffer) {
 
 // Initialize the ISO filesystem
 bool iso_fs_init(void) {
+    terminal_writestring("ISO: Initializing filesystem...\n");
+    terminal_writestring("ISO: Base address: ");
+    char addr_str[32];
+    sprintf(addr_str, "0x%x\n", fs_base);
+    terminal_writestring(addr_str);
+    terminal_writestring("ISO: Size: ");
+    sprintf(addr_str, "%d bytes\n", fs_size);
+    terminal_writestring(addr_str);
+    
     // The filesystem is already loaded by GRUB
+    if (fs_size == 0) {
+        terminal_writestring("ISO: Warning - Filesystem size is 0\n");
+    }
+    
+    terminal_writestring("ISO: Filesystem initialized\n");
     return true;
 }

@@ -26,14 +26,18 @@ uint16_t current_cluster = 0;  // Current directory cluster (0 for root)
 
 // Initialize FAT16 filesystem
 bool fat16_init(void) {
+    terminal_writestring("FAT16: Initializing filesystem...\n");
+    
     // Initialize ISO filesystem first
     if (!iso_fs_init()) {
+        terminal_writestring("FAT16: Failed to initialize ISO filesystem\n");
         return false;
     }
 
     // Read boot sector
     uint8_t sector_buffer[512];
     if (!iso_fs_read_sectors(0, 1, sector_buffer)) {
+        terminal_writestring("FAT16: Failed to read boot sector\n");
         return false;
     }
     memcpy(&boot_sector, sector_buffer, sizeof(fat16_boot_sector_t));
@@ -44,8 +48,11 @@ bool fat16_init(void) {
         boot_sector.fs_type[2] != 'T' || 
         boot_sector.fs_type[3] != '1' || 
         boot_sector.fs_type[4] != '6') {
+        terminal_writestring("FAT16: Invalid filesystem type\n");
         return false;
     }
+
+    terminal_writestring("FAT16: Filesystem type verified\n");
 
     // Calculate important sector locations
     fat_start_sector = boot_sector.reserved_sectors;
@@ -54,19 +61,24 @@ bool fat16_init(void) {
     root_dir_start_sector = fat_start_sector + (sectors_per_fat * boot_sector.num_fats);
     data_start_sector = root_dir_start_sector + root_dir_sectors;
 
+    terminal_writestring("FAT16: Sector locations calculated\n");
+
     // Allocate memory for FAT table
     fat_table = (uint16_t*)malloc(sectors_per_fat * boot_sector.bytes_per_sector);
     if (!fat_table) {
+        terminal_writestring("FAT16: Failed to allocate memory for FAT table\n");
         return false;
     }
 
     // Read FAT table
     if (!iso_fs_read_sectors(fat_start_sector, sectors_per_fat, fat_table)) {
+        terminal_writestring("FAT16: Failed to read FAT table\n");
         free(fat_table);
         fat_table = NULL;
         return false;
     }
 
+    terminal_writestring("FAT16: Filesystem initialized successfully\n");
     return true;
 }
 
@@ -834,5 +846,83 @@ bool fat16_change_directory(const char* path, uint16_t* current_cluster) {
 
     free(dir_entries);
     return success;
+}
+
+uint32_t fat16_get_file_size(const char* filename) {
+    terminal_writestring("FAT16: Getting file size for ");
+    terminal_writestring(filename);
+    terminal_writestring("\n");
+    
+    struct fat16_file file;
+    if (!fat16_open_file(filename, &file)) {
+        terminal_writestring("FAT16: Failed to open file\n");
+        return 0;
+    }
+    uint32_t size = file.size;
+    terminal_writestring("FAT16: File size is ");
+    char size_str[32];
+    sprintf(size_str, "%d bytes\n", size);
+    terminal_writestring(size_str);
+    fat16_close_file(&file);
+    return size;
+}
+
+int fat16_open_file(const char* filename, struct fat16_file* file) {
+    if (!filename || !file) {
+        terminal_writestring("FAT16: Invalid parameters\n");
+        return 0;
+    }
+
+    terminal_writestring("FAT16: Opening file ");
+    terminal_writestring(filename);
+    terminal_writestring("\n");
+
+    // Read current directory
+    fat16_dir_entry_t* dir_entries = (fat16_dir_entry_t*)malloc(root_dir_sectors * boot_sector.bytes_per_sector);
+    if (!dir_entries) {
+        terminal_writestring("FAT16: Failed to allocate memory for directory entries\n");
+        return 0;
+    }
+
+    // Read directory contents
+    if (!fat16_read_directory(current_cluster, dir_entries, boot_sector.root_entries)) {
+        terminal_writestring("FAT16: Failed to read directory\n");
+        free(dir_entries);
+        return 0;
+    }
+
+    // Find file in directory
+    fat16_dir_entry_t* file_entry = find_directory_entry(dir_entries, boot_sector.root_entries, filename);
+    if (!file_entry) {
+        terminal_writestring("FAT16: File not found\n");
+        free(dir_entries);
+        return 0;
+    }
+
+    terminal_writestring("FAT16: File found, size: ");
+    char size_str[32];
+    sprintf(size_str, "%d bytes\n", file_entry->file_size);
+    terminal_writestring(size_str);
+
+    // Initialize file structure
+    file->starting_cluster = file_entry->starting_cluster;
+    file->size = file_entry->file_size;
+    file->position = 0;
+    file->current_cluster = file->starting_cluster;
+    file->cluster_offset = 0;
+
+    free(dir_entries);
+    return 1;
+}
+
+void fat16_close_file(struct fat16_file* file) {
+    if (file) {
+        // Reset file structure
+        file->starting_cluster = 0;
+        file->size = 0;
+        file->position = 0;
+        file->current_cluster = 0;
+        file->cluster_offset = 0;
+    }
 } 
 

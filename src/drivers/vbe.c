@@ -2,6 +2,7 @@
 #include "../../include/io.h"
 #include "../../include/string.h"
 #include "../../include/multiboot.h"
+#include "../../include/drivers/bdf_font.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdarg.h>
@@ -271,5 +272,156 @@ void terminal_writestring_color(const char* data, uint32_t color) {
     while (*data) {
         terminal_putchar_color(*data++, color);
     }
+}
+
+// Draw a character using a BDF font
+void vbe_draw_char_bdf(int x, int y, char c, uint32_t color, const struct bdf_font* font) {
+    if (!vbe_state.initialized || !font) return;
+    
+    // Get character bitmap
+    const uint8_t* bitmap = bdf_get_char_bitmap(font, c);
+    int bytes_per_row = (font->width + 7) / 8;
+    
+    // Debug output for character 'A'
+    if (c == 'A') {
+        terminal_writestring("Rendering 'A' at (");
+        char pos_str[32];
+        sprintf(pos_str, "%d, %d)\n", x, y);
+        terminal_writestring(pos_str);
+        
+        for (int py = 0; py < font->height; py++) {
+            terminal_writestring("Row ");
+            sprintf(pos_str, "%d: ", py);
+            terminal_writestring(pos_str);
+            for (int i = 0; i < bytes_per_row; i++) {
+                terminal_writehex(bitmap[py * bytes_per_row + i]);
+                terminal_writestring(" ");
+            }
+            terminal_writestring("\n");
+        }
+    }
+    
+    // Draw each pixel of the character
+    for (int py = 0; py < font->height; py++) {
+        for (int px = 0; px < font->width; px++) {
+            int byte_index = py * bytes_per_row + (px / 8);
+            int bit_index = 7 - (px % 8);  // Most significant bit first
+            
+            if (bitmap[byte_index] & (1 << bit_index)) {
+                int screen_x = x + px + font->x_offset;
+                int screen_y = y + py + font->y_offset;
+                
+                if (screen_x >= 0 && screen_x < vbe_state.width &&
+                    screen_y >= 0 && screen_y < vbe_state.height) {
+                    uint32_t* pixel = vbe_state.framebuffer + screen_y * (vbe_state.pitch / 4) + screen_x;
+                    *pixel = color;
+                }
+            }
+        }
+    }
+}
+
+// Draw a string using a BDF font
+void vbe_draw_string_bdf(int x, int y, const char* str, uint32_t color, const struct bdf_font* font) {
+    if (!vbe_state.initialized || !str || !font) return;
+    
+    int current_x = x;
+    int current_y = y;
+    
+    while (*str) {
+        if (*str == '\n') {
+            current_x = x;
+            current_y += font->height;
+        } else {
+            vbe_draw_char_bdf(current_x, current_y, *str, color, font);
+            current_x += font->width;
+            
+            // Check for line wrapping
+            if (current_x + font->width > vbe_state.width) {
+                current_x = x;
+                current_y += font->height;
+            }
+        }
+        str++;
+    }
+}
+
+// Draw a string centered horizontally using a BDF font
+void vbe_draw_string_centered_bdf(int y, const char* str, uint32_t color, const struct bdf_font* font) {
+    if (!vbe_state.initialized || !str || !font) return;
+    
+    int width = strlen(str) * font->width;
+    int x = (vbe_state.width - width) / 2;
+    vbe_draw_string_bdf(x, y, str, color, font);
+}
+
+// Draw a character using the font loader
+void vbe_draw_char_font_loader(int x, int y, char c, uint32_t color) {
+    if (!vbe_state.initialized) return;
+    
+    // Get character bitmap and dimensions
+    const uint8_t* bitmap = font_get_char_bitmap(c);
+    int width = font_get_char_width(c);
+    int height = font_get_char_height(c);
+    
+    // Draw each pixel of the character
+    for (int py = 0; py < height; py++) {
+        for (int px = 0; px < width; px++) {
+            int byte_index = py * ((width + 7) / 8);
+            int bit_index = 7 - (px % 8);  // Most significant bit first
+            
+            if (bitmap[byte_index] & (1 << bit_index)) {
+                int screen_x = x + px;
+                int screen_y = y + py;
+                
+                if (screen_x >= 0 && screen_x < vbe_state.width &&
+                    screen_y >= 0 && screen_y < vbe_state.height) {
+                    uint32_t* pixel = vbe_state.framebuffer + screen_y * (vbe_state.pitch / 4) + screen_x;
+                    *pixel = color;
+                }
+            }
+        }
+    }
+}
+
+// Draw a string using the font loader
+void vbe_draw_string_font_loader(int x, int y, const char* str, uint32_t color) {
+    if (!vbe_state.initialized || !str) return;
+    
+    int current_x = x;
+    int current_y = y;
+    
+    while (*str) {
+        if (*str == '\n') {
+            current_x = x;
+            current_y += font_get_char_height(*str);
+        } else {
+            vbe_draw_char_font_loader(current_x, current_y, *str, color);
+            current_x += font_get_char_width(*str);
+            
+            // Check for line wrapping
+            if (current_x + font_get_char_width(*str) > vbe_state.width) {
+                current_x = x;
+                current_y += font_get_char_height(*str);
+            }
+        }
+        str++;
+    }
+}
+
+// Draw a string centered horizontally using the font loader
+void vbe_draw_string_centered_font_loader(int y, const char* str, uint32_t color) {
+    if (!vbe_state.initialized || !str) return;
+    
+    // Calculate total width of the string
+    int total_width = 0;
+    const char* s = str;
+    while (*s) {
+        total_width += font_get_char_width(*s);
+        s++;
+    }
+    
+    int x = (vbe_state.width - total_width) / 2;
+    vbe_draw_string_font_loader(x, y, str, color);
 }
 

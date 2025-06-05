@@ -16,6 +16,8 @@
 #include "../include/multiboot.h"
 #include "../include/drivers/vbe.h"
 #include "../include/utils/boot_animation.h"
+#include "../include/drivers/bdf_font.h"
+#include "../include/drivers/font_loader.h"
 #include <stddef.h>
 
 // Multiboot magic number
@@ -37,6 +39,11 @@ void delay_animation(int dots, int start_x, int y) {
 void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 	// Initialize VBE first
 	vbe_initialize(multiboot_magic, multiboot_info);
+	
+	// Initialize font loader with the converted font
+	if (!font_loader_init("unifont.font")) {
+		terminal_writestring("Warning: Could not load custom font, using embedded font\n");
+	}
 	
 	// Clear screen with black background
 	terminal_clear();
@@ -101,6 +108,15 @@ void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 				delay_animation(1, 120, 200);
 				
 				// Set the base address and size for the ISO filesystem
+				terminal_writestring("Setting ISO filesystem base address: ");
+				char addr_str[32];
+				sprintf(addr_str, "0x%x\n", mods[0].mod_start);
+				terminal_writestring(addr_str);
+				
+				terminal_writestring("Setting ISO filesystem size: ");
+				sprintf(addr_str, "%d bytes\n", mods[0].mod_end - mods[0].mod_start);
+				terminal_writestring(addr_str);
+				
 				iso_fs_set_base(mods[0].mod_start);
 				iso_fs_set_size(mods[0].mod_end - mods[0].mod_start);
 				terminal_writestring_color("OK\n", 0x00FF00);
@@ -135,6 +151,12 @@ void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 	}
 	terminal_writestring_color("OK\n", 0x00FF00);
 	
+	// List root directory contents
+	terminal_writestring("Listing root directory contents:\n");
+	if (!fat16_list_directory("/")) {
+		terminal_writestring("Failed to list root directory\n");
+	}
+	
 	// Initialize keyboard
 	terminal_writestring("Keyboard: ");
 	delay_animation(1, 90, 260);
@@ -146,9 +168,16 @@ void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 	
 	// Show system ready message
 	terminal_writestring("System initialized successfully!\n");
+	terminal_clear();
+	
+	// Draw welcome message using the font loader
+	vbe_draw_string_centered_font_loader(vbe_get_height() / 2, "Hello, World!", 0xFFFFFFFF);
 	
 	// Show boot animation
-	show_boot_animation();
+	//show_boot_animation();
+	
+	// Clean up font resources
+	font_loader_cleanup();
 	
 	// Start shell
 	//terminal_writestring("Starting shell...\n");

@@ -133,18 +133,22 @@ VBE_C = $(DRIVERS_DIR)/vbe.c
 VBE_OBJ = $(BUILD_DIR)/vbe.o
 FONT_C = $(DRIVERS_DIR)/font_8x16.c
 FONT_OBJ = $(BUILD_DIR)/font_8x16.o
+BDF_FONT_C = $(DRIVERS_DIR)/bdf_font.c
+BDF_FONT_OBJ = $(BUILD_DIR)/bdf_font.o
+FONT_LOADER_C = $(DRIVERS_DIR)/font_loader.c
+FONT_LOADER_OBJ = $(BUILD_DIR)/font_loader.o
 
 # Add after your other file definitions
 BOOT_ANIMATION_C = $(UTILS_DIR)/boot_animation.c
 BOOT_ANIMATION_OBJ = $(BUILD_DIR)/boot_animation.o
 
-# Add BOOT_ANIMATION_OBJ to the OBJS list
+# Add BOOT_ANIMATION_OBJ, BDF_FONT_OBJ, and FONT_LOADER_OBJ to the OBJS list
 OBJS = $(BOOT_OBJ) $(KERNEL_OBJ) $(IO_OBJ) $(IDT_ASM_OBJ) $(IDT_C_OBJ) \
        $(GDT_C_OBJ) $(KEYBOARD_DRIVER_OBJ) $(TIMER_DRIVER_OBJ) \
        $(STRING_OBJ) $(SHELL_OBJ) $(PMM_OBJ) $(MEMORY_MAP_OBJ) $(HEAP_OBJ) $(STDLIB_OBJ) $(LIBGCC_OBJ) \
        $(TEST_OBJ) $(TEST2_OBJ) $(SYSCALL_TEST_OBJ) $(SYSCALL_ASM_OBJ) $(SYSCALL_C_OBJ) \
        $(VERSION_OBJ) $(FAT16_OBJ) $(ATA_OBJ) $(PROGRAM_OBJ) $(EDITOR_OBJ) $(ISO_FS_OBJ) $(ISO_FS_TEST_OBJ) \
-       $(PROGRESS_OBJ) $(VBE_OBJ) $(FONT_OBJ) $(STDIO_OBJ) $(ANSI_OBJ) $(BOOT_ANIMATION_OBJ)
+       $(PROGRESS_OBJ) $(VBE_OBJ) $(FONT_OBJ) $(STDIO_OBJ) $(ANSI_OBJ) $(BOOT_ANIMATION_OBJ) $(BDF_FONT_OBJ) $(FONT_LOADER_OBJ)
 
 # Default target
 .PHONY: all
@@ -319,15 +323,25 @@ $(STDIO_OBJ): $(STDIO_C) | $(BUILD_DIR)
 	@echo "Compiling stdio..."
 	$(CC) $(CFLAGS) $< -o $@
 
+# Compile font loader
+$(FONT_LOADER_OBJ): $(FONT_LOADER_C) | $(BUILD_DIR)
+	@echo "Compiling font loader..."
+	$(CC) $(CFLAGS) $< -o $@
+
 # Compile boot animation
 $(BOOT_ANIMATION_OBJ): $(BOOT_ANIMATION_C) | $(BUILD_DIR)
 	@echo "Compiling boot animation..."
 	$(CC) $(CFLAGS) $< -o $@
 
+# Compile BDF font
+$(BDF_FONT_OBJ): $(BDF_FONT_C) | $(BUILD_DIR)
+	@echo "Compiling BDF font..."
+	$(CC) $(CFLAGS) $< -o $@
+
 # Link kernel
 $(KERNEL_BIN): $(OBJS)
 	@echo "Linking kernel..."
-	$(LD) $(LDFLAGS) $^ -o $@
+	$(LD) $(LDFLAGS) -o $@ $^
 
 # Create ISO
 $(ISO_IMAGE): $(KERNEL_BIN) | $(BUILD_DIR)
