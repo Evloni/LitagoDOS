@@ -185,29 +185,29 @@ void terminal_clear(void) {
 void terminal_putchar(char c) {
     if (c == '\n') {
         vbe_cursor_x = 0;
-        vbe_cursor_y += font_8x16.height;
+        vbe_cursor_y += font_get_char_height(c);
     } else {
-        vbe_draw_char(vbe_cursor_x, vbe_cursor_y, c, 0xFFFFFFFF, &font_8x16); // White text
-        vbe_cursor_x += font_8x16.width;
+        vbe_draw_char_font_loader(vbe_cursor_x, vbe_cursor_y, c, 0xFFFFFFFF); // White text
+        vbe_cursor_x += font_get_char_width(c);
         
         // Check for line wrapping
-        if (vbe_cursor_x + font_8x16.width > vbe_state.width) {
+        if (vbe_cursor_x + font_get_char_width(c) > vbe_state.width) {
             vbe_cursor_x = 0;
-            vbe_cursor_y += font_8x16.height;
+            vbe_cursor_y += font_get_char_height(c);
         }
     }
 }
 
 void terminal_putentryat(char c, uint8_t color, size_t x, size_t y) {
     // Convert from character coordinates to pixel coordinates
-    int pixel_x = x * font_8x16.width;
-    int pixel_y = y * font_8x16.height;
+    int pixel_x = x * font_get_char_width(c);
+    int pixel_y = y * font_get_char_height(c);
     
     // Draw the character
-    vbe_draw_char(pixel_x, pixel_y, c, color, &font_8x16);
+    vbe_draw_char_font_loader(pixel_x, pixel_y, c, color);
     
     // Update cursor position
-    vbe_cursor_x = pixel_x + font_8x16.width;
+    vbe_cursor_x = pixel_x + font_get_char_width(c);
     vbe_cursor_y = pixel_y;
 }
 

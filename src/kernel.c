@@ -170,17 +170,20 @@ void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 	terminal_writestring("System initialized successfully!\n");
 	terminal_clear();
 	
-	// Draw welcome message using the font loader
-	vbe_draw_string_centered_font_loader(vbe_get_height() / 2, "Hello, World!", 0xFFFFFFFF);
+	// Initialize font loader with the BDF font
+	if (!font_loader_init("UNIFONT.FNT")) {
+		terminal_writestring("Warning: Could not load main font, using fallback font\n");
+	}
+	
 	
 	// Show boot animation
 	//show_boot_animation();
-	
-	// Clean up font resources
-	font_loader_cleanup();
 	
 	// Start shell
 	//terminal_writestring("Starting shell...\n");
 	//show_progress_bar(40, 10);  // 40-character wide progress bar
 	//shell_start();
+	
+	// Clean up font resources when shutting down
+	font_loader_cleanup();
 }
