@@ -187,7 +187,7 @@ void terminal_putchar(char c) {
         vbe_cursor_x = 0;
         vbe_cursor_y += font_get_char_height(c);
     } else {
-        vbe_draw_char_font_loader(vbe_cursor_x, vbe_cursor_y, c, 0xFFFFFFFF); // White text
+        vbe_draw_char_font_loader(vbe_cursor_x, vbe_cursor_y, c, current_color);
         vbe_cursor_x += font_get_char_width(c);
         
         // Check for line wrapping
@@ -231,19 +231,19 @@ void terminal_writehex(uint32_t n) {
 }
 
 void terminal_get_cursor(size_t* x, size_t* y) {
-    if (x) *x = vbe_cursor_x / font_8x16.width;
-    if (y) *y = vbe_cursor_y / font_8x16.height;
+    if (x) *x = vbe_cursor_x / font_get_char_width(' ');
+    if (y) *y = vbe_cursor_y / font_get_char_height(' ');
 }
 
 void terminal_update_cursor(void) {
     // Ensure cursor stays within screen bounds
     if (vbe_cursor_x >= vbe_state.width) {
         vbe_cursor_x = 0;
-        vbe_cursor_y += font_8x16.height;
+        vbe_cursor_y += font_get_char_height(' ');
     }
     if (vbe_cursor_y >= vbe_state.height) {
         // Scroll the screen up by one line
-        vbe_cursor_y -= font_8x16.height;
+        vbe_cursor_y -= font_get_char_height(' ');
         // TODO: Implement screen scrolling
     }
 }
@@ -269,9 +269,12 @@ void terminal_putchar_color(char c, uint32_t color) {
 
 void terminal_writestring_color(const char* data, uint32_t color) {
     if (!data) return;
+    uint32_t old_color = current_color;
+    current_color = color;
     while (*data) {
-        terminal_putchar_color(*data++, color);
+        terminal_putchar(*data++);
     }
+    current_color = old_color;
 }
 
 // Draw a character using a BDF font

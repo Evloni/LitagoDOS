@@ -40,11 +40,6 @@ void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 	// Initialize VBE first
 	vbe_initialize(multiboot_magic, multiboot_info);
 	
-	// Initialize font loader with the converted font
-	if (!font_loader_init("unifont.font")) {
-		terminal_writestring("Warning: Could not load custom font, using embedded font\n");
-	}
-	
 	// Clear screen with black background
 	terminal_clear();
 	
@@ -133,15 +128,6 @@ void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 		return;
 	}
 	
-	// Initialize timer driver
-	terminal_writestring("Timer driver: ");
-	delay_animation(1, 120, 220);
-	if (!timer_driver_init()) {
-		terminal_writestring("FAILED\n");
-		return;
-	}
-	terminal_writestring_color("OK\n", 0x00FF00);
-	
 	// Initialize FAT16 filesystem
 	terminal_writestring("FAT16 filesystem: ");
 	delay_animation(1, 145, 240);
@@ -150,13 +136,16 @@ void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 		return;
 	}
 	terminal_writestring_color("OK\n", 0x00FF00);
-	
-	// List root directory contents
-	terminal_writestring("Listing root directory contents:\n");
-	if (!fat16_list_directory("/")) {
-		terminal_writestring("Failed to list root directory\n");
+
+	// Initialize timer driver
+	terminal_writestring("Timer driver: ");
+	delay_animation(1, 120, 220);
+	if (!timer_driver_init()) {
+		terminal_writestring("FAILED\n");
+		return;
 	}
-	
+	terminal_writestring_color("OK\n", 0x00FF00);
+
 	// Initialize keyboard
 	terminal_writestring("Keyboard: ");
 	delay_animation(1, 90, 260);
@@ -166,14 +155,20 @@ void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 	}
 	terminal_writestring_color("OK\n", 0x00FF00);
 	
-	// Show system ready message
-	terminal_writestring("System initialized successfully!\n");
-	terminal_clear();
 	
 	// Initialize font loader with the BDF font
-	if (!font_loader_init("UNIFONT.FNT")) {
-		terminal_writestring("Warning: Could not load main font, using fallback font\n");
+	if (!font_loader_init("UNIFONT.BDF")) {
+		terminal_writestring("Warning: Could not load custom font, using embedded font\n");
 	}
+	
+
+	// Show system ready message
+	terminal_writestring("System initialized successfully!\n");
+	
+
+	
+	
+	
 	
 	
 	// Show boot animation
