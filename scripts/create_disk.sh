@@ -28,7 +28,7 @@ echo "Welcome to LitagoDOS!" | sudo tee mnt/USER/README.TXT
 echo "Hello World!" | sudo tee mnt/USER/HELLOWORLD.TXT
 
 # Copy the BDF font file to the FONTS directory
-sudo cp fonts/unifont.font mnt/UNIFONT.FNT
+sudo cp fonts/unifont.bdf mnt/UNIFONT.BDF
 
 # Unmount the image
 sudo umount mnt
