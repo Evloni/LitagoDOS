@@ -3,6 +3,45 @@
 #include "../../include/drivers/vbe.h"
 #include <string.h>
 
+// Custom strtok implementation
+static char* custom_strtok(char* str, const char* delim) {
+    static char* last = NULL;
+    char* token;
+    
+    if (str) {
+        last = str;
+    }
+    
+    if (!last) {
+        return NULL;
+    }
+    
+    // Skip leading delimiters
+    while (*last && strchr(delim, *last)) {
+        last++;
+    }
+    
+    if (!*last) {
+        return NULL;
+    }
+    
+    token = last;
+    
+    // Find end of token
+    while (*last && !strchr(delim, *last)) {
+        last++;
+    }
+    
+    if (*last) {
+        *last = '\0';
+        last++;
+    } else {
+        last = NULL;
+    }
+    
+    return token;
+}
+
 // Function declarations
 static fat16_dir_entry_t* find_directory_entry(fat16_dir_entry_t* dir, int num_entries, const char* name);
 
@@ -208,27 +247,60 @@ bool fat16_read_root_dir(void) {
 
 // Read file contents
 int fat16_read_file(const char* filename, void* buffer, uint32_t max_size) {
+    // Parse path into directory and filename
+    char dir_path[256] = {0};
+    char file_name[13] = {0};
+    const char* last_slash = strrchr(filename, '/');
+    
+    if (last_slash) {
+        // Copy directory path
+        int dir_len = last_slash - filename;
+        if (dir_len >= sizeof(dir_path)) return 0;
+        strncpy(dir_path, filename, dir_len);
+        dir_path[dir_len] = '\0';
+        
+        // Copy filename
+        strncpy(file_name, last_slash + 1, sizeof(file_name) - 1);
+    } else {
+        // No directory specified, use current directory
+        strncpy(file_name, filename, sizeof(file_name) - 1);
+    }
+    
+    // Save current directory
+    uint16_t saved_cluster = current_cluster;
+    
+    // If directory path exists, change to it
+    if (dir_path[0] != '\0') {
+        if (!fat16_change_directory(dir_path, &current_cluster)) {
+            return 0;
+        }
+    }
+    
     fat16_dir_entry_t* dir_entries = (fat16_dir_entry_t*)malloc(root_dir_sectors * boot_sector.bytes_per_sector);
     if (!dir_entries) {
+        current_cluster = saved_cluster; // Restore directory
         return 0;
     }
 
     // Read current directory
     if (!fat16_read_directory(current_cluster, dir_entries, boot_sector.root_entries)) {
         free(dir_entries);
+        current_cluster = saved_cluster; // Restore directory
         return 0;
     }
 
     // Find file in directory
-    fat16_dir_entry_t* file_entry = find_directory_entry(dir_entries, boot_sector.root_entries, filename);
+    fat16_dir_entry_t* file_entry = find_directory_entry(dir_entries, boot_sector.root_entries, file_name);
     if (!file_entry) {
         free(dir_entries);
+        current_cluster = saved_cluster; // Restore directory
         return 0;
     }
 
     // Check for empty file
     if (file_entry->file_size == 0) {
         free(dir_entries);
+        current_cluster = saved_cluster; // Restore directory
         return -1; // Special value for empty file
     }
 
@@ -241,6 +313,7 @@ int fat16_read_file(const char* filename, void* buffer, uint32_t max_size) {
         uint32_t lba = fat16_cluster_to_lba(cluster);
         if (!iso_fs_read_sectors(lba, boot_sector.sectors_per_cluster, data_buffer + bytes_read)) {
             free(dir_entries);
+            current_cluster = saved_cluster; // Restore directory
             return 0;
         }
         bytes_read += boot_sector.sectors_per_cluster * boot_sector.bytes_per_sector;
@@ -249,6 +322,7 @@ int fat16_read_file(const char* filename, void* buffer, uint32_t max_size) {
     }
 
     free(dir_entries);
+    current_cluster = saved_cluster; // Restore directory
     return 1;
 }
 
@@ -749,7 +823,13 @@ static fat16_dir_entry_t* find_directory_entry(fat16_dir_entry_t* dir, int num_e
 bool fat16_read_directory(uint16_t cluster, fat16_dir_entry_t* entries, int max_entries) {
     if (cluster == 0) {
         // Root directory
-        return iso_fs_read_sectors(root_dir_start_sector, root_dir_sectors, entries);
+        if (!iso_fs_read_sectors(root_dir_start_sector, root_dir_sectors, entries)) {
+            return false;
+        }
+        // Clear any remaining entries
+        memset((uint8_t*)entries + (root_dir_sectors * boot_sector.bytes_per_sector), 0,
+               (max_entries * sizeof(fat16_dir_entry_t)) - (root_dir_sectors * boot_sector.bytes_per_sector));
+        return true;
     }
 
     // Read directory clusters
@@ -818,7 +898,8 @@ bool fat16_change_directory(const char* path, uint16_t* current_cluster) {
                 // Check if this is the .. entry
                 if (dir_entries[i].filename[0] == '.' && 
                     dir_entries[i].filename[1] == '.' && 
-                    dir_entries[i].filename[2] == ' ') {
+                    dir_entries[i].filename[2] == ' ' &&
+                    (dir_entries[i].attributes & FAT16_ATTR_DIRECTORY)) {
                     *current_cluster = dir_entries[i].starting_cluster;
                     success = true;
                     break;
@@ -830,22 +911,40 @@ bool fat16_change_directory(const char* path, uint16_t* current_cluster) {
         return success;
     }
 
-    // Read current directory
-    fat16_dir_entry_t* dir_entries = (fat16_dir_entry_t*)malloc(root_dir_sectors * boot_sector.bytes_per_sector);
-    if (!dir_entries) return false;
+    // Handle nested paths
+    char path_copy[256];
+    strncpy(path_copy, path, sizeof(path_copy) - 1);
+    path_copy[sizeof(path_copy) - 1] = '\0';
 
-    bool success = false;
-    if (fat16_read_directory(*current_cluster, dir_entries, boot_sector.root_entries)) {
-        // Find the directory entry
-        fat16_dir_entry_t* entry = find_directory_entry(dir_entries, boot_sector.root_entries, path);
-        if (entry && (entry->attributes & FAT16_ATTR_DIRECTORY)) {
-            *current_cluster = entry->starting_cluster;
-            success = true;
-        }
+    // Remove leading slash if present
+    if (path_copy[0] == '/') {
+        *current_cluster = 0;  // Start from root
+        memmove(path_copy, path_copy + 1, strlen(path_copy));
     }
 
-    free(dir_entries);
-    return success;
+    // Split path into components and traverse each
+    char* component = custom_strtok(path_copy, "/");
+    while (component) {
+        fat16_dir_entry_t* dir_entries = (fat16_dir_entry_t*)malloc(root_dir_sectors * boot_sector.bytes_per_sector);
+        if (!dir_entries) return false;
+
+        bool success = false;
+        if (fat16_read_directory(*current_cluster, dir_entries, boot_sector.root_entries)) {
+            // Find the directory entry
+            fat16_dir_entry_t* entry = find_directory_entry(dir_entries, boot_sector.root_entries, component);
+            if (entry && (entry->attributes & FAT16_ATTR_DIRECTORY)) {
+                *current_cluster = entry->starting_cluster;
+                success = true;
+            }
+        }
+
+        free(dir_entries);
+        if (!success) return false;
+
+        component = custom_strtok(NULL, "/");
+    }
+
+    return true;
 }
 
 uint32_t fat16_get_file_size(const char* filename) {

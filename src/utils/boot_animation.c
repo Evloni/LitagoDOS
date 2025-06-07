@@ -2,6 +2,7 @@
 #include "../../include/font_8x16.h"
 #include "../../include/version.h"
 #include "../../include/shell.h"
+#include "../../include/PSF1_parser/psf1_parser.h"
 #include <stdint.h>
 
 // Animation colors
@@ -109,14 +110,14 @@ static const char* cow_frames[] = {
 // Draw the logo with a fade-in effect
 static void draw_logo(int y_offset) {
     for (int i = 0; i < 8; i++) {
-        vbe_draw_string(32, y_offset + (i * 16), logo[i], LOGO_COLOR, &font_8x16);
+        vbe_draw_string_psf1(32, y_offset + (i * 16), logo[i], LOGO_COLOR, get_current_psf1_font());
     }
 }
 
 // Draw the animated cow
 static void draw_cow(int x, int y, int frame) {
     for (int i = 0; i < 8; i++) {
-        vbe_draw_string(x, y + (i * 16), cow_frames[frame * 8 + i], COW_COLOR, &font_8x16);
+        vbe_draw_string_psf1(x, y + (i * 16), cow_frames[frame * 8 + i], COW_COLOR, get_current_psf1_font());
     }
 }
 
@@ -134,11 +135,11 @@ static void draw_loading_bar(int x, int y, int width, int height, int progress) 
 static void draw_version_info(int y_offset) {
     char version_str[64];
     snprintf(version_str, sizeof(version_str), "Version %s", VERSION_STRING);
-    vbe_draw_string(32, y_offset, version_str, TEXT_COLOR, &font_8x16);
+    vbe_draw_string_psf1(32, y_offset, version_str, TEXT_COLOR, get_current_psf1_font());
     
     char build_str[64];
     snprintf(build_str, sizeof(build_str), "Build: %s %s", BUILD_DATE, BUILD_TIME);
-    vbe_draw_string(32, y_offset + 16, build_str, TEXT_COLOR, &font_8x16);
+    vbe_draw_string_psf1(32, y_offset + 16, build_str, TEXT_COLOR, get_current_psf1_font());
 }
 
 // Main boot animation function

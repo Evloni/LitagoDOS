@@ -6,7 +6,7 @@
 #include <stdbool.h>
 #include "../multiboot.h"
 #include "font_8x16.h"
-#include "bdf_font.h"
+#include "../PSF1_parser/psf1_parser.h"
 
 // VBE default dimensions
 #define VBE_WIDTH 1024
@@ -77,7 +77,6 @@ struct vbe_text_context {
     const struct font* font;
     int tab_size;
     int line_height;
-    int char_spacing;
 };
 
 // Function declarations
@@ -89,6 +88,9 @@ void vbe_draw_rect(int x, int y, int width, int height, uint32_t color);
 void vbe_draw_char(int x, int y, char c, uint32_t color, const struct font* font);
 void vbe_draw_string(int x, int y, const char* str, uint32_t color, const struct font* font);
 void vbe_draw_string_centered(int y, const char* str, uint32_t color, const struct font* font);
+void vbe_draw_char_psf1(int x, int y, char c, uint32_t color, const PSF1Font* font);
+void vbe_draw_string_psf1(int x, int y, const char* str, uint32_t color, const PSF1Font* font);
+void vbe_draw_string_centered_psf1(int y, const char* str, uint32_t color, const PSF1Font* font);
 uint16_t vbe_get_width(void);
 uint16_t vbe_get_height(void);
 void vbe_init_text_context(struct vbe_text_context* ctx, int start_x, int start_y, 
@@ -116,15 +118,5 @@ void terminal_update_cursor(void);
 
 // ANSI support
 void ansi_set_enabled(bool enabled);
-
-// BDF font drawing functions
-void vbe_draw_char_bdf(int x, int y, char c, uint32_t color, const struct bdf_font* font);
-void vbe_draw_string_bdf(int x, int y, const char* str, uint32_t color, const struct bdf_font* font);
-void vbe_draw_string_centered_bdf(int y, const char* str, uint32_t color, const struct bdf_font* font);
-
-// Font loader drawing functions
-void vbe_draw_char_font_loader(int x, int y, char c, uint32_t color);
-void vbe_draw_string_font_loader(int x, int y, const char* str, uint32_t color);
-void vbe_draw_string_centered_font_loader(int y, const char* str, uint32_t color);
 
 #endif // VBE_H 

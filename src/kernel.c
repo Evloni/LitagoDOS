@@ -154,10 +154,11 @@ void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 		return;
 	}
 	terminal_writestring_color("OK\n", 0x00FF00);
-	
+
+	fat16_read_root_dir();
 	
 	// Initialize font loader with the BDF font
-	if (!font_loader_init("UNIFONT.BDF")) {
+	if (!font_loader_init("SYSTEM/FONTS/ZAPLIGHT.PSF")) {
 		terminal_writestring("Warning: Could not load custom font, using embedded font\n");
 	}
 	
@@ -172,7 +173,7 @@ void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 	
 	
 	// Show boot animation
-	//show_boot_animation();
+	show_boot_animation();
 	
 	// Start shell
 	//terminal_writestring("Starting shell...\n");
@@ -180,5 +181,4 @@ void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 	//shell_start();
 	
 	// Clean up font resources when shutting down
-	font_loader_cleanup();
 }

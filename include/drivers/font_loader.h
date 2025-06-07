@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include "../PSF1_parser/psf1_parser.h"
 
 // Initialize the font loader with a font file
 bool font_loader_init(const char* font_file);
@@ -21,5 +22,8 @@ int font_get_char_height(char c);
 
 // Check if a character is available in either font
 bool font_is_char_available(char c);
+
+// Get the currently loaded PSF1 font
+const PSF1Font* get_current_psf1_font(void);
 
 #endif // FONT_LOADER_H 

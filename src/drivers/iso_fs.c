@@ -18,11 +18,8 @@ void iso_fs_set_base(uint32_t base) {
 
 // Set the size of the filesystem
 void iso_fs_set_size(uint32_t size) {
-    // Ensure size is a multiple of 512 bytes
-    if (size & 0x1FF) {
-        return;  // Invalid size
-    }
-    fs_size = size;
+    // Round down to nearest sector boundary
+    fs_size = size & ~0x1FF;
 }
 
 // Read sectors from the ISO filesystem

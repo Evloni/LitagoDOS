@@ -18,17 +18,16 @@ sudo mount -t vfat $LOOP_DEV mnt
 
 # Create directory structure
 sudo mkdir -p mnt/SYSTEM
+sudo mkdir -p mnt/SYSTEM/FONTS
 sudo mkdir -p mnt/DRIVERS
 sudo mkdir -p mnt/APPS
 sudo mkdir -p mnt/USER
-sudo mkdir -p mnt/FONTS
 
 # Create placeholder files
-echo "Welcome to LitagoDOS!" | sudo tee mnt/USER/README.TXT
-echo "Hello World!" | sudo tee mnt/USER/HELLOWORLD.TXT
+echo "Welcome to Litago!" | sudo tee mnt/USER/README.TXT
 
 # Copy the BDF font file to the FONTS directory
-sudo cp fonts/unifont.bdf mnt/UNIFONT.BDF
+sudo cp fonts/zap-light16.psf mnt/SYSTEM/FONTS/ZAPLIGHT.PSF
 
 # Unmount the image
 sudo umount mnt
