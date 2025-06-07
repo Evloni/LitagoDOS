@@ -66,8 +66,21 @@ void vbe_initialize(uint32_t multiboot_magic, void* multiboot_info) {
 void vbe_draw_char(int x, int y, char c, uint32_t color, const struct font* font) {
     if (!vbe_state.initialized || !font) return;
     
-    // Get character bitmap - subtract 0x20 to get the correct index in the font data
-    const uint8_t* bitmap = &font->data[(c - 0x20) * font->height];
+    // Convert char to unsigned to properly handle extended ASCII
+    unsigned char uc = (unsigned char)c;
+    
+    // Calculate the correct index in the font data
+    // For standard ASCII (32-127), subtract 0x20
+    // For extended ASCII (128-255), use the character code directly
+    size_t index;
+    if (uc < 128) {
+        index = (uc - 0x20) * font->height;
+    } else {
+        index = uc * font->height;
+    }
+    
+    // Get character bitmap
+    const uint8_t* bitmap = &font->data[index];
     
     // Draw each pixel of the character
     for (int py = 0; py < font->height; py++) {
@@ -269,12 +282,9 @@ void terminal_putchar_color(char c, uint32_t color) {
 
 void terminal_writestring_color(const char* data, uint32_t color) {
     if (!data) return;
-    uint32_t old_color = current_color;
-    current_color = color;
     while (*data) {
-        terminal_putchar(*data++);
+        terminal_putchar_color(*data++, color);
     }
-    current_color = old_color;
 }
 
 // Draw a character using a PSF1 font
@@ -389,5 +399,15 @@ void vbe_draw_string_centered_font_loader(int y, const char* str, uint32_t color
     
     int x = (vbe_state.width - total_width) / 2;
     vbe_draw_string_font_loader(x, y, str, color);
+}
+
+// Get framebuffer address
+void* vbe_get_framebuffer(void) {
+    return vbe_state.framebuffer;
+}
+
+// Get framebuffer pitch
+uint32_t vbe_get_pitch(void) {
+    return vbe_state.pitch;
 }
 

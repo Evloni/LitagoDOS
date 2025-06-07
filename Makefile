@@ -150,6 +150,7 @@ OBJS = $(BOOT_OBJ) $(KERNEL_OBJ) $(IO_OBJ) $(IDT_ASM_OBJ) $(IDT_C_OBJ) \
        $(VERSION_OBJ) $(FAT16_OBJ) $(ATA_OBJ) $(PROGRAM_OBJ) $(EDITOR_OBJ) $(ISO_FS_OBJ) $(ISO_FS_TEST_OBJ) \
        $(PROGRESS_OBJ) $(VBE_OBJ) $(FONT_OBJ) $(STDIO_OBJ) $(ANSI_OBJ) $(BOOT_ANIMATION_OBJ) $(PSF1_PARSER_OBJ) $(FONT_LOADER_OBJ)
 
+
 # Default target
 .PHONY: all
 all: $(ISO_IMAGE) run clean
@@ -337,6 +338,8 @@ $(BOOT_ANIMATION_OBJ): $(BOOT_ANIMATION_C) | $(BUILD_DIR)
 $(PSF1_PARSER_OBJ): $(PSF1_PARSER_C) | $(BUILD_DIR)
 	@echo "Compiling PSF1 parser..."
 	$(CC) $(CFLAGS) $< -o $@
+
+
 
 # Link kernel
 $(KERNEL_BIN): $(OBJS)

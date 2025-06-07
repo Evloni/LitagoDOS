@@ -93,6 +93,8 @@ void vbe_draw_string_psf1(int x, int y, const char* str, uint32_t color, const P
 void vbe_draw_string_centered_psf1(int y, const char* str, uint32_t color, const PSF1Font* font);
 uint16_t vbe_get_width(void);
 uint16_t vbe_get_height(void);
+void* vbe_get_framebuffer(void);
+uint32_t vbe_get_pitch(void);
 void vbe_init_text_context(struct vbe_text_context* ctx, int start_x, int start_y, 
                           uint32_t fg_color, uint32_t bg_color, const struct font* font);
 void vbe_draw_string_wrapped(struct vbe_text_context* ctx, const char* str, int max_width);

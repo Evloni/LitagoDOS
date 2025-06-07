@@ -182,7 +182,6 @@ void show_boot_animation(void) {
         for (volatile int j = 0; j < 10000000; j++);
     }
     
-    // Add a final delay before continuing
-    for (volatile int j = 0; j < 500000000; j++);
+   
     shell_start();
 } 

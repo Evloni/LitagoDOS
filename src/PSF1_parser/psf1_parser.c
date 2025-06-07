@@ -58,7 +58,11 @@ PSF1Font* load_psf1(const char* path) {
 }
 
 void render_glyph_vbe(const PSF1Font* font, int index, uint32_t* framebuffer, int fb_width, int fb_pitch, int x, int y) {
-    if (index >= font->glyph_count) return;
+    // Ensure index is within bounds and handle extended ASCII
+    if (index < 0 || index >= font->glyph_count) {
+        // If index is out of bounds, render a space character
+        index = 0;
+    }
 
     uint8_t* glyph = &font->glyphs[index * font->header.char_height];
     for (int row = 0; row < font->header.char_height; row++) {
@@ -66,7 +70,9 @@ void render_glyph_vbe(const PSF1Font* font, int index, uint32_t* framebuffer, in
         for (int col = 0; col < 8; col++) {
             int pixel_on = bits & (0x80 >> col);
             int fb_index = (y + row) * (fb_pitch / 4) + (x + col);
-            framebuffer[fb_index] = pixel_on ? VBE_WHITE : VBE_BLACK;
+            if (fb_index >= 0 && fb_index < (fb_width * fb_pitch / 4)) {
+                framebuffer[fb_index] = pixel_on ? VBE_WHITE : VBE_BLACK;
+            }
         }
     }
 }

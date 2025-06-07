@@ -155,22 +155,26 @@ void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 	}
 	terminal_writestring_color("OK\n", 0x00FF00);
 
-	fat16_read_root_dir();
 	
-	// Initialize font loader with the BDF font
+	// Initialize font loader with the PSF font
 	if (!font_loader_init("SYSTEM/FONTS/ZAPLIGHT.PSF")) {
 		terminal_writestring("Warning: Could not load custom font, using embedded font\n");
+	} else {
+		PSF1Font* font = get_current_psf1_font();
+		if (font) {
+			if (font->glyph_count == 512) {
+				terminal_writestring("Loaded font with extended ASCII support\n");
+			} else {
+				terminal_writestring("Warning: Loaded font does not support extended ASCII\n");
+			}
+		}
 	}
 	
 
 	// Show system ready message
 	terminal_writestring("System initialized successfully!\n");
 	
-
-	
-	
-	
-	
+	// Test box drawing
 	
 	// Show boot animation
 	show_boot_animation();

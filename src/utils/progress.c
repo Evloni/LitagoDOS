@@ -2,45 +2,52 @@
 #include "../../include/drivers/vbe.h"
 #include "../../include/font_8x16.h"
 #include "../../include/string.h"
+#include "../../include/PSF1_parser/psf1_parser.h"
 #include <stddef.h>
 
-// External delay function from kernel
-extern void delay_animation(int dots);
 
 void show_progress_bar(int width, int steps) {
+    
     // Get screen dimensions
     int screen_width = vbe_get_width();
     int screen_height = vbe_get_height();
     
     // Calculate progress bar dimensions
-    int bar_width = width * 8;  // Each character is 8 pixels wide
-    int bar_height = 20;        // Height of the progress bar
-    int bar_x = (screen_width - bar_width) / 2;  // Center horizontally
-    int bar_y = (screen_height - bar_height) / 2;  // Center vertically
+    int bar_width = width;  // Width in characters
+    int bar_height = 3;     // Height in characters
+    int bar_x = (screen_width / 8 - bar_width - 6) / 2;  // Center horizontally, accounting for percentage text
+    int bar_y = (screen_height / 16 - bar_height) / 2;  // Center vertically
     
     // Draw progress bar
     for (int i = 0; i < steps; i++) {
-        // Clear previous progress bar
-        vbe_draw_rect(bar_x, bar_y, bar_width, bar_height, 0x333333);  // Dark gray background
-        
-        // Draw new progress
+        // Calculate progress
         int progress = (i + 1) * bar_width / steps;
-        vbe_draw_rect(bar_x, bar_y, progress, bar_height, 0x00FF00);  // Green progress
         
-        // Draw percentage text
-        char percent_str[8];
-        int percent = (i + 1) * 100 / steps;
-        itoa(percent, percent_str, 10);
-        strcat(percent_str, "%");
-        
-        // Calculate text position to center it
-        int text_x = bar_x + (bar_width - strlen(percent_str) * 8) / 2;
-        int text_y = bar_y + (bar_height - 16) / 2;  // Center vertically
-        
-        // Draw percentage text directly on the progress bar
-        vbe_draw_string(text_x, text_y, percent_str, 0xFFFFFF, &font_8x16);
+        // Draw the progress bar frame
+        for (int y = 0; y < bar_height; y++) {
+            for (int x = 0; x < bar_width; x++) {
+                char c;
+                if (y == 0 || y == bar_height - 1) {
+                    // Top and bottom borders
+                    c = '─';
+                } else if (x == 0) {
+                    // Left border
+                    c = '│';
+                } else if (x == bar_width - 1) {
+                    // Right border
+                    c = '│';
+                } else if (x < progress) {
+                    // Progress fill
+                    c = '█';
+                } else {
+                    // Empty space
+                    c = '░';
+                }
+            }
+        }
+  
         
         // Use kernel's delay animation
-        delay_animation(1);  // Add a small delay between updates
     }
-} 
+}
+
