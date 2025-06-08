@@ -37,6 +37,99 @@ int vbe_cursor_y = 0;
 // Current text color
 static uint32_t current_color = 0xFFFFFFFF;  // Default to white
 
+// Cursor state
+bool cursor_visible = true;  // Changed from static to global
+static uint32_t cursor_blink_time = 0;
+static const uint32_t CURSOR_BLINK_INTERVAL = 30; // Blink every 300ms (30 ticks at 100Hz)
+bool cursor_active = false;  // Track if cursor is being actively used
+
+
+// Draw the cursor at current position
+void vbe_draw_cursor(void) {
+    if (!vbe_state.initialized) return;
+    
+    // Always show cursor when active, otherwise respect blink state
+    if (!cursor_active && !cursor_visible) {
+        // Instead of erasing with black, we'll XOR with white to restore the original pixels
+        for (int py = vbe_cursor_y; py < vbe_cursor_y + font_8x16.height; py++) {
+            for (int px = vbe_cursor_x; px < vbe_cursor_x + 1; px++) {  // Reduced width to 1 pixel
+                if (px >= 0 && px < vbe_state.width &&
+                    py >= 0 && py < vbe_state.height) {
+                    uint32_t* pixel = vbe_state.framebuffer + py * (vbe_state.pitch / 4) + px;
+                    *pixel ^= 0xFFFFFFFF;  // XOR with white to restore original pixels
+                }
+            }
+        }
+        return;
+    }
+    
+    // Draw a vertical line for the cursor using XOR
+    int cursor_width = 1;  // Reduced width to 1 pixel
+    int cursor_height = font_8x16.height;  // Height of cursor in pixels
+    
+    // Draw the cursor using XOR
+    for (int py = vbe_cursor_y; py < vbe_cursor_y + cursor_height; py++) {
+        for (int px = vbe_cursor_x; px < vbe_cursor_x + cursor_width; px++) {
+            if (px >= 0 && px < vbe_state.width &&
+                py >= 0 && py < vbe_state.height) {
+                uint32_t* pixel = vbe_state.framebuffer + py * (vbe_state.pitch / 4) + px;
+                *pixel ^= 0xFFFFFFFF;  // XOR with white to invert pixels
+            }
+        }
+    }
+}
+
+// Update cursor blink state
+void vbe_update_cursor(uint32_t current_time) {
+    // Only update blink state if cursor is not active
+    if (!cursor_active) {
+        // Check if it's time to toggle the cursor
+        if (current_time - cursor_blink_time >= CURSOR_BLINK_INTERVAL) {
+            cursor_visible = !cursor_visible;
+            cursor_blink_time = current_time;
+            vbe_draw_cursor();  // Redraw cursor with new visibility state
+        }
+    } else {
+        // If cursor is active, make sure it's visible
+        if (!cursor_visible) {
+            cursor_visible = true;
+            vbe_draw_cursor();
+        }
+    }
+}
+
+// Set cursor position
+void vbe_set_cursor(int x, int y) {
+    // Erase cursor at old position
+    if (cursor_visible) {
+        vbe_draw_rect(vbe_cursor_x, vbe_cursor_y, 2, font_8x16.height, 0x00000000);
+    }
+    
+    vbe_cursor_x = x;
+    vbe_cursor_y = y;
+    
+    // Draw cursor at new position
+    if (cursor_visible) {
+        vbe_draw_cursor();
+    }
+}
+
+// Set cursor active state
+void vbe_set_cursor_active(bool active) {
+    if (cursor_active != active) {
+        cursor_active = active;
+        if (active) {
+            cursor_visible = true;  // Always show cursor when active
+            vbe_draw_cursor();
+        } else {
+            // When becoming inactive, reset blink timer and hide cursor
+            cursor_blink_time = timer_get_ticks();
+            cursor_visible = false;
+            vbe_draw_cursor();  // This will erase the cursor
+        }
+    }
+}
+
 // Initialize VBE
 void vbe_init(uint32_t multiboot_magic, void* multiboot_info) {
     if (multiboot_magic != 0x2BADB002) {
@@ -170,12 +263,6 @@ uint16_t vbe_get_height(void) {
     return (uint16_t)vbe_state.height;
 }
 
-// Set cursor position
-void vbe_set_cursor(int x, int y) {
-    vbe_cursor_x = x;
-    vbe_cursor_y = y;
-}
-
 // Get cursor position
 void vbe_get_cursor(int* x, int* y) {
     if (x) *x = vbe_cursor_x;
@@ -187,18 +274,42 @@ void terminal_initialize(void) {
     // Already initialized by vbe_init
     vbe_cursor_x = 0;
     vbe_cursor_y = 0;
+    cursor_visible = false;  // Start with cursor invisible
+    cursor_active = false;   // Start with inactive cursor
+    cursor_blink_time = timer_get_ticks();  // Initialize blink timer
+    // Don't draw cursor initially
 }
 
 void terminal_clear(void) {
     vbe_clear_screen(0x00000000); // Black background
     vbe_cursor_x = 0;
     vbe_cursor_y = 0;
+    cursor_visible = true;  // Reset cursor visibility
+    // Don't change cursor_active state here
+    cursor_blink_time = timer_get_ticks();  // Reset blink timer
+    vbe_draw_cursor();  // Draw cursor with current state
 }
 
 void terminal_putchar(char c) {
+    // Only set cursor as active if it's already active
+    if (cursor_active) {
+        vbe_set_cursor_active(true);
+    }
+    
+    // Erase current cursor before drawing new content
+    if (cursor_active) {
+        vbe_draw_rect(vbe_cursor_x, vbe_cursor_y, 2, font_8x16.height, 0x00000000);
+    }
+    
     if (c == '\n') {
         vbe_cursor_x = 0;
         vbe_cursor_y += font_get_char_height(c);
+    } else if (c == '\b') {  // Handle backspace
+        if (vbe_cursor_x > 0) {
+            vbe_cursor_x -= font_get_char_width(' ');  // Move cursor back
+            // Clear the character at cursor position
+            vbe_draw_rect(vbe_cursor_x, vbe_cursor_y, font_get_char_width(' '), font_8x16.height, 0x00000000);
+        }
     } else {
         vbe_draw_char_font_loader(vbe_cursor_x, vbe_cursor_y, c, current_color);
         vbe_cursor_x += font_get_char_width(c);
@@ -234,6 +345,11 @@ void terminal_putchar(char c) {
         
         // Adjust cursor position
         vbe_cursor_y = vbe_state.height - line_height;
+    }
+    
+    // Draw new cursor position only if active
+    if (cursor_active) {
+        vbe_draw_cursor();
     }
 }
 

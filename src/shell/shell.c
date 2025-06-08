@@ -25,6 +25,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+// External cursor state
+extern bool cursor_visible;
+
 // VBE display dimensions
 #define VBE_WIDTH 1024  // Assuming 1024x768 resolution
 #define VBE_HEIGHT 768
@@ -712,8 +715,10 @@ void shell_init(void) {
     // Clear screen and draw header
     vbe_clear_screen(0x00000000);
     
-    // Initialize terminal
+    // Initialize terminal without cursor
     terminal_initialize();
+    vbe_set_cursor_active(false);
+    cursor_visible = false;
     
     // Clear command buffer and history
     memset(cmd_buffer, 0, MAX_CMD_LENGTH);
@@ -728,11 +733,10 @@ void shell_init(void) {
     
     draw_header();
     
-    // Move cursor below header
+    // Set position for text output without cursor
     vbe_cursor_x = 0;
-    vbe_cursor_y = 125; // or 0, or wherever you want the prompt to start
-    prev_cursor_x = -1;
-    prev_cursor_y = -1;
+    vbe_cursor_y = 125; // Position below header
+    
     // Draw initial prompt
     draw_prompt();
 }

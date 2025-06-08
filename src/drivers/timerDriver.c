@@ -17,8 +17,8 @@ void timer_handler(struct regs *r) {
 
 // Initialize the timer
 static void timer_init(void) {
-    // Calculate the divisor for the desired frequency (1000 Hz = 1ms intervals)
-    uint32_t divisor = PIT_FREQUENCY / 1000;
+    // Calculate the divisor for the desired frequency (100 Hz = 10ms intervals)
+    uint32_t divisor = PIT_FREQUENCY / 100;
     
     // Send command byte: channel 0, lobyte/hibyte, mode 3 (square wave)
     outb(PIT_COMMAND, 0x36);
@@ -26,6 +26,9 @@ static void timer_init(void) {
     // Send divisor
     outb(PIT_CHANNEL0, divisor & 0xFF);         // Low byte
     outb(PIT_CHANNEL0, (divisor >> 8) & 0xFF);  // High byte
+    
+    // Initialize timer ticks
+    timer_ticks = 0;
 }
 
 // Get the current tick count

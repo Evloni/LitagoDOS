@@ -93,6 +93,7 @@
   - [x] Keyboard driver with arrow key support
   - [x] Disk driver (QEMU-attached FAT16 image)
   - [x] Timer driver
+  - [ ] PCI driver
   - [ ] AHCI driver
 
 ## Phase 7: User Interface Enhancements

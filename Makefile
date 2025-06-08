@@ -6,7 +6,7 @@ LD = ld
 
 # Flags
 ASMFLAGS = -f elf32
-CFLAGS = -m32 -ffreestanding -fno-pie -fno-stack-protector -nostdlib -c -Iinclude
+CFLAGS = -m32 -ffreestanding -fno-pie -fno-stack-protector -nostdlib -c -Iinclude -mno-red-zone -fno-exceptions
 LDFLAGS = -m elf_i386 -T linker.ld -nostdlib
 
 # Directories

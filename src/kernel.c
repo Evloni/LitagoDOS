@@ -19,6 +19,7 @@
 #include "../include/drivers/bdf_font.h"
 #include "../include/drivers/font_loader.h"
 #include "./GUI/BOXDRAWING/boxDrawing.h"
+#include "../include/drivers/vbe.h"
 #include <stddef.h>
 
 // Multiboot magic number
@@ -43,6 +44,9 @@ void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 	
 	// Clear screen with black background
 	terminal_clear();
+	
+	// Hide cursor during kernel initialization
+	vbe_set_cursor_active(false);
 	
 	// Display version information
 	terminal_writestring("Litago Version ");
@@ -156,7 +160,6 @@ void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 	}
 	terminal_writestring_color("OK\n", 0x00FF00);
 
-	
 	// Initialize font loader with the PSF font
 	if (!font_loader_init("SYSTEM/FONTS/ZAPLIGHT.PSF")) {
 		terminal_writestring("Warning: Could not load custom font, using embedded font\n");
@@ -171,17 +174,15 @@ void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 		}
 	}
 	
-
 	// Show system ready message
 	terminal_writestring("System initialized successfully!\n");
 
 	// Show boot animation
 	show_boot_animation();
 	
-	// Start shell
-	//terminal_writestring("Starting shell...\n");
-	//show_progress_bar(40, 10);  // 40-character wide progress bar
-	//shell_start();
+	// Start shell with cursor enabled
+	vbe_set_cursor_active(true);
+	shell_start();
 	
 	// Clean up font resources when shutting down
 }

@@ -177,6 +177,15 @@ void editor_draw(Editor* editor) {
     // Draw position string right-aligned
     int pos_x = VBE_WIDTH - (strlen(position_str) * 8);
     vbe_draw_string(pos_x, (VBE_HEIGHT / 16 - 1) * 16, position_str, 0xFFFFFFFF, &font_8x16);
+
+    // Update VBE cursor position to match editor cursor
+    int display_y = editor->cursor_y - editor->scroll_offset;
+    if (display_y >= 0 && display_y < EDITOR_EDITABLE_HEIGHT) {
+        vbe_set_cursor(
+            (editor->cursor_x + LINE_NUMBER_GUTTER_WIDTH) * 8,  // Add line number width
+            display_y * 16  // Convert to pixel coordinates
+        );
+    }
 }
 
 // Handle a single character input
@@ -249,6 +258,17 @@ bool editor_handle_input(Editor* editor) {
                     }
                     break;
             }
+            // Update VBE cursor position after navigation
+            int display_y = editor->cursor_y - editor->scroll_offset;
+            if (display_y >= 0 && display_y < EDITOR_EDITABLE_HEIGHT) {
+                vbe_set_cursor(
+                    (editor->cursor_x + LINE_NUMBER_GUTTER_WIDTH) * 8,
+                    display_y * 16
+                );
+                // Ensure cursor is visible after navigation
+                vbe_set_cursor_active(true);
+                vbe_draw_cursor();
+            }
         }
         return true;
     }
@@ -280,13 +300,43 @@ void editor_main_loop(Editor* editor) {
     // Draw initial state
     editor_draw(editor);
     
+    // Enable cursor for editor
+    vbe_set_cursor_active(true);
+    
+    // Initialize cursor blink timer and last input time
+    uint32_t last_blink_time = timer_get_ticks();
+    uint32_t last_input_time = timer_get_ticks();
+    const uint32_t CURSOR_INACTIVE_TIMEOUT = 100; // 1 second timeout (100 ticks at 100Hz)
+    
     // Main loop
     while (1) {
-        if (!editor_handle_input(editor)) {
-            break;
+        // Update cursor blink state
+        uint32_t current_time = timer_get_ticks();
+        vbe_update_cursor(current_time);
+        
+        // Check for input
+        if (keyboard_buffer_has_data()) {
+            // Make cursor visible when typing
+            vbe_set_cursor_active(true);
+            last_input_time = current_time;
+            
+            if (!editor_handle_input(editor)) {
+                break;
+            }
+            editor_draw(editor);
+        } else {
+            // Check if we should set cursor to inactive
+            if (current_time - last_input_time >= CURSOR_INACTIVE_TIMEOUT) {
+                vbe_set_cursor_active(false);
+            }
         }
-        editor_draw(editor);
+        
+        // Small delay to prevent CPU hogging
+        for (volatile int i = 0; i < 1000; i++);
     }
+    
+    // Disable cursor when exiting editor
+    vbe_set_cursor_active(false);
 }
 
 bool editor_load_file(Editor* editor, const char* filename) {
@@ -439,6 +489,12 @@ void editor_insert_char(Editor* editor, char c) {
             for (int i = strlen(line); i < VBE_WIDTH / 8 - LINE_NUMBER_GUTTER_WIDTH; i++) {
                 vbe_draw_char((i + LINE_NUMBER_GUTTER_WIDTH) * 8, display_y * 16, ' ', editor->bg_color, &font_8x16);
             }
+
+            // Update VBE cursor position
+            vbe_set_cursor(
+                (editor->cursor_x + LINE_NUMBER_GUTTER_WIDTH) * 8,
+                display_y * 16
+            );
         }
     }
 }
@@ -467,6 +523,12 @@ void editor_delete_char(Editor* editor) {
             for (int i = strlen(line); i < VBE_WIDTH / 8 - LINE_NUMBER_GUTTER_WIDTH; i++) {
                 vbe_draw_char((i + LINE_NUMBER_GUTTER_WIDTH) * 8, display_y * 16, ' ', editor->bg_color, &font_8x16);
             }
+
+            // Update VBE cursor position
+            vbe_set_cursor(
+                (editor->cursor_x + LINE_NUMBER_GUTTER_WIDTH) * 8,
+                display_y * 16
+            );
         }
     }
 }

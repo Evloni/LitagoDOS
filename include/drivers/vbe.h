@@ -15,6 +15,8 @@
 // Global cursor position
 extern int vbe_cursor_x;
 extern int vbe_cursor_y;
+extern bool cursor_active;
+extern bool cursor_visible;
 
 // VBE Information Block
 struct vbe_info_block {
@@ -107,6 +109,10 @@ uint32_t vbe_getcolor(void);
 
 // Cursor functions
 void vbe_set_cursor(int x, int y);
+void vbe_get_cursor(int* x, int* y);
+void vbe_draw_cursor(void);
+void vbe_update_cursor(uint32_t current_time);
+void vbe_set_cursor_active(bool active);
 
 // Terminal-compatible wrapper functions
 void terminal_initialize(void);
