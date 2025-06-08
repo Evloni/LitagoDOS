@@ -18,6 +18,7 @@
 #include "../include/utils/boot_animation.h"
 #include "../include/drivers/bdf_font.h"
 #include "../include/drivers/font_loader.h"
+#include "./GUI/BOXDRAWING/boxDrawing.h"
 #include <stddef.h>
 
 // Multiboot magic number
@@ -38,7 +39,7 @@ void delay_animation(int dots, int start_x, int y) {
 
 void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 	// Initialize VBE first
-	vbe_initialize(multiboot_magic, multiboot_info);
+	vbe_init(multiboot_magic, multiboot_info);
 	
 	// Clear screen with black background
 	terminal_clear();
@@ -173,9 +174,7 @@ void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 
 	// Show system ready message
 	terminal_writestring("System initialized successfully!\n");
-	
-	// Test box drawing
-	
+
 	// Show boot animation
 	show_boot_animation();
 	

@@ -38,7 +38,7 @@ int vbe_cursor_y = 0;
 static uint32_t current_color = 0xFFFFFFFF;  // Default to white
 
 // Initialize VBE
-void vbe_initialize(uint32_t multiboot_magic, void* multiboot_info) {
+void vbe_init(uint32_t multiboot_magic, void* multiboot_info) {
     if (multiboot_magic != 0x2BADB002) {
         return;
     }
@@ -184,7 +184,7 @@ void vbe_get_cursor(int* x, int* y) {
 
 // Terminal-compatible wrapper functions
 void terminal_initialize(void) {
-    // Already initialized by vbe_initialize
+    // Already initialized by vbe_init
     vbe_cursor_x = 0;
     vbe_cursor_y = 0;
 }
@@ -409,5 +409,17 @@ void* vbe_get_framebuffer(void) {
 // Get framebuffer pitch
 uint32_t vbe_get_pitch(void) {
     return vbe_state.pitch;
+}
+
+// Draw a single pixel
+void vbe_put_pixel(int x, int y, uint32_t color) {
+    if (!vbe_state.initialized || 
+        x < 0 || x >= vbe_state.width || 
+        y < 0 || y >= vbe_state.height) {
+        return;
+    }
+
+    uint32_t* pixel = vbe_state.framebuffer + y * (vbe_state.pitch / 4) + x;
+    *pixel = color;
 }
 

@@ -44,3 +44,4 @@ grub.cfg
 *.mod.c
 isodir/boot/kernel.bin
 isodir/*.*
+.vscode/settings.json

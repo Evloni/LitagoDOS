@@ -169,24 +169,9 @@ static const char* find_closest_command(const char* input) {
 }
 
 void draw_header() {
-    // Use VBE colors directly
-    const PSF1Font* font = get_current_psf1_font();
-    if (!font) {
-        // Fall back to embedded font if PSF1 font is not available
-        vbe_draw_string(0, 0, "+------------------------------------------------------------------+", BORDER_COLOR, &font_8x16);
-        vbe_draw_string(0, 16, "|                                                                  |", BORDER_COLOR, &font_8x16);
-        vbe_draw_string(0, 32, "|                    Litago Operating System                       |", HEADER_COLOR, &font_8x16);
-        vbe_draw_string(0, 48, "|                                                                  |", BORDER_COLOR, &font_8x16);
-        vbe_draw_string(0, 64, "+------------------------------------------------------------------+", BORDER_COLOR, &font_8x16);
-        vbe_draw_string(0, 96, "  Type 'help' for a list of commands\n", TEXT_COLOR, &font_8x16);
-    } else {
-        vbe_draw_string_psf1(0, 0, "+------------------------------------------------------------------+", BORDER_COLOR, font);
-        vbe_draw_string_psf1(0, 16, "|                                                                  |", BORDER_COLOR, font);
-        vbe_draw_string_psf1(0, 32, "|                    Litago Operating System                       |", HEADER_COLOR, font);
-        vbe_draw_string_psf1(0, 48, "|                                                                  |", BORDER_COLOR, font);
-        vbe_draw_string_psf1(0, 64, "+------------------------------------------------------------------+", BORDER_COLOR, font);
-        vbe_draw_string_psf1(0, 96, "  Type 'help' for a list of commands\n", TEXT_COLOR, font);
-    }
+    // Draw the box with the correct dimensions
+    draw_box_with_text(0, 0, 70, 5, "Litago Operating System", BORDER_COLOR, HEADER_COLOR);
+    vbe_draw_string(1, 96, "  Type 'help' for a list of commands\n", TEXT_COLOR, &font_8x16);
 }
 
 void draw_prompt() {
@@ -726,14 +711,9 @@ static void handle_command(const char* command) {
 void shell_init(void) {
     // Clear screen and draw header
     vbe_clear_screen(0x00000000);
-    // Initialize terminal first
-    if (!vbe_initialize()) {
-        terminal_writestring("VBE initialization failed\n");
-        // If terminal initialization fails, we can't continue
-        while(1) {
-            __asm__("hlt");  // Halt the system
-        }
-    }
+    
+    // Initialize terminal
+    terminal_initialize();
     
     // Clear command buffer and history
     memset(cmd_buffer, 0, MAX_CMD_LENGTH);
