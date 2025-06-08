@@ -62,6 +62,7 @@ uint32_t data_start_sector;
 uint32_t sectors_per_fat;
 uint32_t root_dir_sectors;
 uint16_t current_cluster = 0;  // Current directory cluster (0 for root)
+uint16_t user_dir_cluster = 0;  // Define the variable
 
 // Initialize FAT16 filesystem
 bool fat16_init(void) {
@@ -117,6 +118,34 @@ bool fat16_init(void) {
         return false;
     }
 
+    // After reading FAT table, find USER directory
+    fat16_dir_entry_t* root_dir = (fat16_dir_entry_t*)malloc(root_dir_sectors * boot_sector.bytes_per_sector);
+    if (!root_dir) {
+        terminal_writestring("FAT16: Failed to allocate memory for root directory\n");
+        return false;
+    }
+
+    if (!iso_fs_read_sectors(root_dir_start_sector, root_dir_sectors, root_dir)) {
+        free(root_dir);
+        return false;
+    }
+
+    // Find USER directory
+    for (int i = 0; i < boot_sector.root_entries; i++) {
+        if (root_dir[i].filename[0] == 0x00) break;
+        if (root_dir[i].filename[0] == 0xE5) continue;
+        if ((root_dir[i].attributes & FAT16_ATTR_LONG_NAME) == FAT16_ATTR_LONG_NAME) continue;
+        if (root_dir[i].attributes & FAT16_ATTR_VOLUME_ID) continue;
+
+        // Check if this is the USER directory
+        if (strncmp((char*)root_dir[i].filename, "USER", 4) == 0 &&
+            (root_dir[i].attributes & FAT16_ATTR_DIRECTORY)) {
+            user_dir_cluster = root_dir[i].starting_cluster;
+            break;
+        }
+    }
+
+    free(root_dir);
     terminal_writestring("FAT16: Filesystem initialized successfully\n");
     return true;
 }
@@ -869,9 +898,9 @@ bool fat16_read_directory(uint16_t cluster, fat16_dir_entry_t* entries, int max_
 bool fat16_change_directory(const char* path, uint16_t* current_cluster) {
     if (!path || !current_cluster) return false;
 
-    // Handle root directory
+    // Handle root directory - now points to USER
     if (strcmp(path, "/") == 0) {
-        *current_cluster = 0;  // 0 represents root directory
+        *current_cluster = user_dir_cluster;  // Use USER directory cluster instead of 0
         return true;
     }
 

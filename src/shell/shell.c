@@ -13,6 +13,14 @@
 #include "../../include/editor.h"
 #include "../../include/drivers/iso_fs.h"
 #include "../../include/timerDriver.h"
+#include "../../include/PSF1_parser/psf1_parser.h"
+#include "../../include/drivers/font_loader.h"
+#include "../../include/io.h"
+#include "../../include/memory/heap.h"
+#include "../../include/font_8x16.h"
+#include "../../include/multiboot.h"
+#include "../../include/utils/progress.h"
+#include "../../include/utils/boot_animation.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -27,6 +35,7 @@
 extern fat16_boot_sector_t boot_sector;
 extern uint32_t root_dir_sectors;
 extern uint32_t root_dir_start_sector;
+extern uint16_t user_dir_cluster;  // Declare as external since it's defined in fat16.c
 
 // Shell visual elements
 #define PROMPT_COLOR 0xFF00FF00  // Light Green
@@ -161,29 +170,41 @@ static const char* find_closest_command(const char* input) {
 
 void draw_header() {
     // Use VBE colors directly
-    vbe_draw_string(0, 0, "+------------------------------------------------------------------+", BORDER_COLOR, &font_8x16);
-    vbe_draw_string(0, 16, "|                                                                  |", BORDER_COLOR, &font_8x16);
-    vbe_draw_string(0, 32, "|                    Litago Operating System                       |", HEADER_COLOR, &font_8x16);
-    vbe_draw_string(0, 48, "|                                                                  |", BORDER_COLOR, &font_8x16);
-    vbe_draw_string(0, 64, "+------------------------------------------------------------------+", BORDER_COLOR, &font_8x16);
-    vbe_draw_string(0, 96, "  Type 'help' for a list of commands\n", TEXT_COLOR, &font_8x16);
+    const PSF1Font* font = get_current_psf1_font();
+    if (!font) {
+        // Fall back to embedded font if PSF1 font is not available
+        vbe_draw_string(0, 0, "+------------------------------------------------------------------+", BORDER_COLOR, &font_8x16);
+        vbe_draw_string(0, 16, "|                                                                  |", BORDER_COLOR, &font_8x16);
+        vbe_draw_string(0, 32, "|                    Litago Operating System                       |", HEADER_COLOR, &font_8x16);
+        vbe_draw_string(0, 48, "|                                                                  |", BORDER_COLOR, &font_8x16);
+        vbe_draw_string(0, 64, "+------------------------------------------------------------------+", BORDER_COLOR, &font_8x16);
+        vbe_draw_string(0, 96, "  Type 'help' for a list of commands\n", TEXT_COLOR, &font_8x16);
+    } else {
+        vbe_draw_string_psf1(0, 0, "+------------------------------------------------------------------+", BORDER_COLOR, font);
+        vbe_draw_string_psf1(0, 16, "|                                                                  |", BORDER_COLOR, font);
+        vbe_draw_string_psf1(0, 32, "|                    Litago Operating System                       |", HEADER_COLOR, font);
+        vbe_draw_string_psf1(0, 48, "|                                                                  |", BORDER_COLOR, font);
+        vbe_draw_string_psf1(0, 64, "+------------------------------------------------------------------+", BORDER_COLOR, font);
+        vbe_draw_string_psf1(0, 96, "  Type 'help' for a list of commands\n", TEXT_COLOR, font);
+    }
 }
 
 void draw_prompt() {
-    // Calculate total prompt length
-    int prompt_len = 8 + strlen(current_directory) + 2;  // "[litago:" + dir + "] "
-    
-    // Clear the line first
-    vbe_draw_rect(0, vbe_cursor_y, VBE_WIDTH, font_8x16.height, 0x00000000);
-    
-    // Draw the prompt
-    vbe_draw_string(0, vbe_cursor_y, "[litago:", PROMPT_COLOR, &font_8x16);
-    vbe_draw_string(8 * 8, vbe_cursor_y, current_directory, PROMPT_COLOR, &font_8x16);
-    vbe_draw_string((8 + strlen(current_directory)) * 8, vbe_cursor_y, "] ", PROMPT_COLOR, &font_8x16);
-    
-    // Update cursor position
-    vbe_cursor_x = prompt_len * 8;  // 8 pixels per character
-    vbe_cursor_y = vbe_cursor_y;    // Keep the same line
+    const PSF1Font* font = get_current_psf1_font();
+    if (!font) {
+        // Fall back to embedded font if PSF1 font is not available
+        vbe_draw_rect(0, vbe_cursor_y, VBE_WIDTH, font_8x16.height, 0x00000000);
+        vbe_draw_string(0, vbe_cursor_y, "[litago:", PROMPT_COLOR, &font_8x16);
+        vbe_draw_string(8 * 8, vbe_cursor_y, current_directory, PROMPT_COLOR, &font_8x16);
+        vbe_draw_string((8 + strlen(current_directory)) * 8, vbe_cursor_y, "] ", PROMPT_COLOR, &font_8x16);
+        vbe_cursor_x = (8 + strlen(current_directory) + 2) * 8;  // Update cursor position after prompt
+    } else {
+        vbe_draw_rect(0, vbe_cursor_y, VBE_WIDTH, font->header.char_height, 0x00000000);
+        vbe_draw_string_psf1(0, vbe_cursor_y, "[litago:", PROMPT_COLOR, font);
+        vbe_draw_string_psf1(8 * 8, vbe_cursor_y, current_directory, PROMPT_COLOR, font);
+        vbe_draw_string_psf1((8 + strlen(current_directory)) * 8, vbe_cursor_y, "] ", PROMPT_COLOR, font);
+        vbe_cursor_x = (8 + strlen(current_directory) + 2) * 8;  // Update cursor position after prompt
+    }
 }
 
 static void shutdown() {
@@ -721,6 +742,10 @@ void shell_init(void) {
     history_index = -1;  // Start at -1 to indicate no history position
     cmd_index = 0;
     
+    // Set initial directory to USER
+    strcpy(current_directory, "/");
+    current_cluster = user_dir_cluster;  // Use USER directory cluster
+    
     draw_header();
     
     // Move cursor below header
@@ -752,10 +777,34 @@ void shell_start(void) {
             // Handle special keys
             if (c == '\b') {  // Backspace
                 if (cmd_index > 0) {
+                    // Store current cursor position
+                    int current_x = vbe_cursor_x;
+                    int current_y = vbe_cursor_y;
+                    
                     cmd_index--;
                     cmd_buffer[cmd_index] = '\0';
-                    vbe_cursor_x -= 8;  // Move cursor back one character
-                    vbe_draw_rect(vbe_cursor_x, vbe_cursor_y, 8, font_8x16.height, 0x00000000);
+                    
+                    // Clear the entire line
+                    const PSF1Font* font = get_current_psf1_font();
+                    int line_height = font ? font->header.char_height : font_8x16.height;
+                    vbe_draw_rect(0, current_y, VBE_WIDTH, line_height, 0x00000000);
+                    
+                    // Redraw the prompt
+                    draw_prompt();
+                    
+                    // Redraw the remaining text at the correct position
+                    if (cmd_index > 0) {
+                        if (!font) {
+                            vbe_draw_string(vbe_cursor_x, current_y, cmd_buffer, TEXT_COLOR, &font_8x16);
+                            vbe_cursor_x = vbe_cursor_x + (cmd_index * font_8x16.width);
+                        } else {
+                            vbe_draw_string_psf1(vbe_cursor_x, current_y, cmd_buffer, TEXT_COLOR, font);
+                            vbe_cursor_x = vbe_cursor_x + (cmd_index * font_get_char_width(' '));
+                        }
+                    }
+                    
+                    // Restore cursor position
+                    vbe_cursor_y = current_y;
                 }
             } else if (c == '\n') {  // Enter
                 terminal_putchar('\n');
@@ -856,16 +905,13 @@ void shell_start(void) {
 
 // Helper function to clear input line
 void clear_input_line(int length) {
-    // Get current cursor position
-    int current_x = vbe_cursor_x;
-    int current_y = vbe_cursor_y;
-    
-    // Move cursor to the start of the input line
-    vbe_cursor_x = 9 * 8;  // Move to after the prompt
-    vbe_cursor_y = current_y;
-    
-    // Clear the entire line from prompt to end
-    vbe_draw_rect(vbe_cursor_x, vbe_cursor_y, VBE_WIDTH - vbe_cursor_x, font_8x16.height, 0x00000000);
+    const PSF1Font* font = get_current_psf1_font();
+    if (!font) {
+        // Fall back to embedded font if PSF1 font is not available
+        vbe_draw_rect(vbe_cursor_x, vbe_cursor_y, VBE_WIDTH - vbe_cursor_x, font_8x16.height, 0x00000000);
+    } else {
+        vbe_draw_rect(vbe_cursor_x, vbe_cursor_y, VBE_WIDTH - vbe_cursor_x, font->header.char_height, 0x00000000);
+    }
     
     // Reset command buffer and index
     memset(cmd_buffer, 0, MAX_CMD_LENGTH);
