@@ -93,28 +93,7 @@
   - [x] Keyboard driver with arrow key support
   - [x] Disk driver (QEMU-attached FAT16 image)
   - [x] Timer driver
-- [ ] Add support for additional devices
-  - [ ] Hard disk driver
-    - [ ] ATA/IDE Controller Support
-      - [ ] Controller initialization
-      - [ ] Device detection
-      - [ ] Drive identification
-    - [ ] Basic Operations
-      - [ ] Sector read/write
-      - [ ] Error handling
-      - [ ] Timeout management
-    - [ ] Advanced Features
-      - [ ] DMA support
-      - [ ] Disk caching
-      - [ ] Partition table support (MBR)
-    - [ ] Performance Optimizations
-      - [ ] Command queuing
-      - [ ] Sector prefetching
-      - [ ] Write buffering
-    - [ ] File System Integration
-      - [ ] FAT16 support
-      - [ ] Partition mounting
-      - [ ] Boot sector handling
+  - [ ] AHCI driver
 
 ## Phase 7: User Interface Enhancements
 - [x] Improve terminal interface

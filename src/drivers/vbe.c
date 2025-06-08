@@ -209,6 +209,32 @@ void terminal_putchar(char c) {
             vbe_cursor_y += font_get_char_height(c);
         }
     }
+    
+    // Handle scrolling if we're at the bottom of the screen
+    if (vbe_cursor_y >= vbe_state.height) {
+        // Calculate line height
+        int line_height = font_get_char_height(c);
+        
+        // Move everything up by one line
+        for (int y = 0; y < vbe_state.height - line_height; y++) {
+            for (int x = 0; x < vbe_state.width; x++) {
+                uint32_t* src = vbe_state.framebuffer + (y + line_height) * (vbe_state.pitch / 4) + x;
+                uint32_t* dst = vbe_state.framebuffer + y * (vbe_state.pitch / 4) + x;
+                *dst = *src;
+            }
+        }
+        
+        // Clear the last line
+        for (int y = vbe_state.height - line_height; y < vbe_state.height; y++) {
+            for (int x = 0; x < vbe_state.width; x++) {
+                uint32_t* pixel = vbe_state.framebuffer + y * (vbe_state.pitch / 4) + x;
+                *pixel = 0;
+            }
+        }
+        
+        // Adjust cursor position
+        vbe_cursor_y = vbe_state.height - line_height;
+    }
 }
 
 void terminal_putentryat(char c, uint8_t color, size_t x, size_t y) {
@@ -255,9 +281,7 @@ void terminal_update_cursor(void) {
         vbe_cursor_y += font_get_char_height(' ');
     }
     if (vbe_cursor_y >= vbe_state.height) {
-        // Scroll the screen up by one line
-        vbe_cursor_y -= font_get_char_height(' ');
-        // TODO: Implement screen scrolling
+        vbe_cursor_y = vbe_state.height - font_get_char_height(' ');
     }
 }
 
@@ -297,7 +321,8 @@ void vbe_draw_char_psf1(int x, int y, char c, uint32_t color, const PSF1Font* fo
     // Draw each pixel of the glyph
     for (int row = 0; row < font->header.char_height; row++) {
         uint8_t bits = glyph[row];
-        for (int col = 0; col < 8; col++) {
+        for (int col = 0; col < 8; col++) {  // PSF1 fonts are always 8 pixels wide
+            // Check if the bit is set (1 means draw the pixel)
             if (bits & (0x80 >> col)) {
                 int pixel_x = x + col;
                 int pixel_y = y + row;
