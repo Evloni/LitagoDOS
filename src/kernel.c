@@ -20,6 +20,7 @@
 #include "../include/drivers/font_loader.h"
 #include "./GUI/BOXDRAWING/boxDrawing.h"
 #include "../include/drivers/vbe.h"
+#include "../include/drivers/pci.h"
 #include <stddef.h>
 
 // Multiboot magic number
@@ -176,13 +177,11 @@ void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 	
 	// Show system ready message
 	terminal_writestring("System initialized successfully!\n");
+	pci_scan();
 
 	// Show boot animation
-	show_boot_animation();
+	//show_boot_animation();
 	
-	// Start shell with cursor enabled
-	vbe_set_cursor_active(true);
-	shell_start();
 	
 	// Clean up font resources when shutting down
 }
