@@ -1,4 +1,5 @@
 #include "../include/uefi/uefi.h"
+#include "../include/memory/uefi_memory.h"
 #include <stddef.h>
 
 void Print(EFI_SYSTEM_TABLE *SystemTable, uint16_t* str) {
@@ -14,13 +15,22 @@ EFI_STATUS EFIAPI efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTabl
     ClearScreen(SystemTable);
 
     Print(SystemTable, L"UEFI bootloader is running successfully!\n\r");
-    while(1);
-
-    // Wait a bit so user can see the message
-    SystemTable->BootServices->Stall(3000000); // 3 seconds
-
+    Print(SystemTable, L"Initializing UEFI memory management...\n\r");
+    
+    // Initialize UEFI memory map
+    uefi_memory_map_init(SystemTable);
+    
+    Print(SystemTable, L"Memory map initialized successfully!\n\r");
+    
+    // Print memory map information
+    //uefi_memory_map_print(SystemTable);
+    
+    while(1);       
+    // Wait for user input
+    // SystemTable->BootServices->Stall(3000000); // 3 seconds
+    
     // Exit boot services and halt
-    SystemTable->BootServices->Exit(ImageHandle, EFI_SUCCESS, 0, NULL);
+    // SystemTable->BootServices->Exit(ImageHandle, EFI_SUCCESS, 0, NULL);
     
     // This should never be reached, but just in case
     return EFI_SUCCESS;

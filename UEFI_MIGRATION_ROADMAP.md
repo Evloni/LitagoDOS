@@ -23,29 +23,29 @@ This roadmap outlines a **hybrid modernization approach** for LitagoDOS, transit
 ## Phase 1: UEFI + 64-bit Foundation (2-3 weeks)
 
 ### 1.1 Modern Development Environment
-- [ ] Install UEFI development tools:
-  - `gcc-efi` or `gnu-efi` library for 64-bit UEFI development
-  - `ovmf` (UEFI firmware for QEMU)
-  - `efibootmgr` for UEFI boot management
-  - 64-bit cross-compiler toolchain
-- [ ] Set up dual build environment (BIOS 32-bit + UEFI 64-bit)
-- [ ] Create UEFI-specific Makefile targets with fallback to BIOS
+- [x] Install UEFI development tools:
+  - [x] `gcc-efi` or `gnu-efi` library for 64-bit UEFI development
+  - [x] `ovmf` (UEFI firmware for QEMU)
+  - [x] `efibootmgr` for UEFI boot management
+  - [x] 64-bit cross-compiler toolchain
+- [x] Set up dual build environment (BIOS 32-bit + UEFI 64-bit)
+- [x] Create UEFI-specific Makefile targets with fallback to BIOS
 
 ### 1.2 UEFI Boot Infrastructure
-- [ ] Create `src/uefi/uefi_boot.c` - 64-bit UEFI entry point
-- [ ] Implement UEFI application entry point (`efi_main`)
-- [ ] Set up UEFI system table access and protocol discovery
-- [ ] Create UEFI memory map handling for 64-bit addressing
-- [ ] Implement UEFI graphics protocol support
+- [x] Create `src/uefi/uefi_boot.c` - 64-bit UEFI entry point
+- [x] Implement UEFI application entry point (`efi_main`)
+- [x] Set up UEFI system table access and protocol discovery
+- [x] Create UEFI memory map handling for 64-bit addressing
+- [x] Implement UEFI graphics protocol support
 
 ### 1.3 64-bit Kernel Foundation
-- [ ] Create `include/uefi/uefi.h` with UEFI definitions
-- [ ] Implement UEFI protocol interfaces:
-  - `EFI_SYSTEM_TABLE`
-  - `EFI_BOOT_SERVICES`
-  - `EFI_RUNTIME_SERVICES`
-  - `EFI_GRAPHICS_OUTPUT_PROTOCOL`
-  - `EFI_SIMPLE_FILE_SYSTEM_PROTOCOL`
+- [x] Create `include/uefi/uefi.h` with UEFI definitions
+- [x] Implement UEFI protocol interfaces:
+  - [x] `EFI_SYSTEM_TABLE`
+  - [x] `EFI_BOOT_SERVICES`
+  - [x] `EFI_RUNTIME_SERVICES`
+  - [x] `EFI_GRAPHICS_OUTPUT_PROTOCOL`
+  - [x] `EFI_SIMPLE_FILE_SYSTEM_PROTOCOL`
 - [ ] Set up 64-bit GDT and memory segmentation
 - [ ] Implement 64-bit interrupt handling
 

@@ -45,6 +45,7 @@ LDFLAGS="-nostdlib -Wl,--subsystem,10 -Wl,-entry,efi_main -Wl,-image-base,0x2000
 # Source files for UEFI
 UEFI_SOURCES=(
     "src/uefi/uefi_boot.c"
+    "src/memory/uefi_memory.c"
 )
 
 # Object files

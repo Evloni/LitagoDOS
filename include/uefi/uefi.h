@@ -1,6 +1,12 @@
 #ifndef UEFI_H
 #define UEFI_H
 
+#include <stdint.h>
+
+// Place these typedefs at the top so they are available everywhere
+typedef uint64_t UINTN;
+typedef uint32_t UINT32;
+
 #if defined(__x86_64__)
 #define EFIAPI __attribute__((ms_abi))
 #else
@@ -14,39 +20,39 @@ typedef uint64_t EFI_STATUS;
 
 // UEFI Status Codes
 #define EFI_SUCCESS                     0
-#define EFI_LOAD_ERROR                  (1 | (1 << 31))
-#define EFI_INVALID_PARAMETER           (2 | (1 << 31))
-#define EFI_UNSUPPORTED                 (3 | (1 << 31))
-#define EFI_BAD_BUFFER_SIZE             (4 | (1 << 31))
-#define EFI_BUFFER_TOO_SMALL            (5 | (1 << 31))
-#define EFI_NOT_READY                   (6 | (1 << 31))
-#define EFI_DEVICE_ERROR                (7 | (1 << 31))
-#define EFI_WRITE_PROTECTED             (8 | (1 << 31))
-#define EFI_OUT_OF_RESOURCES            (9 | (1 << 31))
-#define EFI_VOLUME_CORRUPTED            (10 | (1 << 31))
-#define EFI_VOLUME_FULL                 (11 | (1 << 31))
-#define EFI_NO_MEDIA                    (12 | (1 << 31))
-#define EFI_MEDIA_CHANGED               (13 | (1 << 31))
-#define EFI_NOT_FOUND                   (14 | (1 << 31))
-#define EFI_ACCESS_DENIED               (15 | (1 << 31))
-#define EFI_NO_RESPONSE                 (16 | (1 << 31))
-#define EFI_NO_MAPPING                  (17 | (1 << 31))
-#define EFI_TIMEOUT                     (18 | (1 << 31))
-#define EFI_NOT_STARTED                 (19 | (1 << 31))
-#define EFI_ALREADY_STARTED             (20 | (1 << 31))
-#define EFI_ABORTED                     (21 | (1 << 31))
-#define EFI_ICMP_ERROR                  (22 | (1 << 31))
-#define EFI_TFTP_ERROR                  (23 | (1 << 31))
-#define EFI_PROTOCOL_ERROR              (24 | (1 << 31))
-#define EFI_INCOMPATIBLE_VERSION        (25 | (1 << 31))
-#define EFI_SECURITY_VIOLATION          (26 | (1 << 31))
-#define EFI_CRC_ERROR                   (27 | (1 << 31))
-#define EFI_END_OF_MEDIA                (28 | (1 << 31))
-#define EFI_END_OF_FILE                 (31 | (1 << 31))
-#define EFI_INVALID_LANGUAGE            (32 | (1 << 31))
-#define EFI_COMPROMISED_DATA            (33 | (1 << 31))
-#define EFI_IP_ADDRESS_CONFLICT         (34 | (1 << 31))
-#define EFI_HTTP_ERROR                  (35 | (1 << 31))
+#define EFI_LOAD_ERROR                  (1ULL | (1ULL << 63))
+#define EFI_INVALID_PARAMETER           (2ULL | (1ULL << 63))
+#define EFI_UNSUPPORTED                 (3ULL | (1ULL << 63))
+#define EFI_BAD_BUFFER_SIZE             (4ULL | (1ULL << 63))
+#define EFI_BUFFER_TOO_SMALL            (5ULL | (1ULL << 63))
+#define EFI_NOT_READY                   (6ULL | (1ULL << 63))
+#define EFI_DEVICE_ERROR                (7ULL | (1ULL << 63))
+#define EFI_WRITE_PROTECTED             (8ULL | (1ULL << 63))
+#define EFI_OUT_OF_RESOURCES            (9ULL | (1ULL << 63))
+#define EFI_VOLUME_CORRUPTED            (10ULL | (1ULL << 63))
+#define EFI_VOLUME_FULL                 (11ULL | (1ULL << 63))
+#define EFI_NO_MEDIA                    (12ULL | (1ULL << 63))
+#define EFI_MEDIA_CHANGED               (13ULL | (1ULL << 63))
+#define EFI_NOT_FOUND                   (14ULL | (1ULL << 63))
+#define EFI_ACCESS_DENIED               (15ULL | (1ULL << 63))
+#define EFI_NO_RESPONSE                 (16ULL | (1ULL << 63))
+#define EFI_NO_MAPPING                  (17ULL | (1ULL << 63))
+#define EFI_TIMEOUT                     (18ULL | (1ULL << 63))
+#define EFI_NOT_STARTED                 (19ULL | (1ULL << 63))
+#define EFI_ALREADY_STARTED             (20ULL | (1ULL << 63))
+#define EFI_ABORTED                     (21ULL | (1ULL << 63))
+#define EFI_ICMP_ERROR                  (22ULL | (1ULL << 63))
+#define EFI_TFTP_ERROR                  (23ULL | (1ULL << 63))
+#define EFI_PROTOCOL_ERROR              (24ULL | (1ULL << 63))
+#define EFI_INCOMPATIBLE_VERSION        (25ULL | (1ULL << 63))
+#define EFI_SECURITY_VIOLATION          (26ULL | (1ULL << 63))
+#define EFI_CRC_ERROR                   (27ULL | (1ULL << 63))
+#define EFI_END_OF_MEDIA                (28ULL | (1ULL << 63))
+#define EFI_END_OF_FILE                 (31ULL | (1ULL << 63))
+#define EFI_INVALID_LANGUAGE            (32ULL | (1ULL << 63))
+#define EFI_COMPROMISED_DATA            (33ULL | (1ULL << 63))
+#define EFI_IP_ADDRESS_CONFLICT         (34ULL | (1ULL << 63))
+#define EFI_HTTP_ERROR                  (35ULL | (1ULL << 63))
 
 // EFI Error checking macro
 #define EFI_ERROR(Status) ((Status) != EFI_SUCCESS)
@@ -64,9 +70,6 @@ typedef uint64_t EFI_RAISE_TPL;
 typedef uint64_t EFI_RESTORE_TPL;
 typedef uint64_t EFI_ALLOCATE_PAGES;
 typedef uint64_t EFI_FREE_PAGES;
-typedef uint64_t EFI_GET_MEMORY_MAP;
-typedef uint64_t EFI_ALLOCATE_POOL;
-typedef uint64_t EFI_FREE_POOL;
 typedef uint64_t EFI_CREATE_EVENT;
 typedef uint64_t EFI_SET_TIMER;
 typedef uint64_t EFI_WAIT_FOR_EVENT;
@@ -86,7 +89,6 @@ typedef uint64_t EFI_IMAGE_LOAD;
 typedef uint64_t EFI_IMAGE_START;
 typedef uint64_t EFI_EXIT;
 typedef uint64_t EFI_IMAGE_UNLOAD;
-typedef uint64_t EFI_EXIT_BOOT_SERVICES;
 typedef uint64_t EFI_GET_NEXT_MONOTONIC_COUNT;
 typedef uint64_t EFI_STALL;
 typedef uint64_t EFI_SET_WATCHDOG_TIMER;
@@ -252,6 +254,31 @@ typedef struct _EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL {
 typedef EFI_STATUS (EFIAPI *EFI_BOOT_STALL)(uint64_t Microseconds);
 typedef EFI_STATUS (EFIAPI *EFI_BOOT_EXIT)(EFI_HANDLE ImageHandle, EFI_STATUS ExitStatus, uint64_t ExitDataSize, uint16_t *ExitData);
 
+// Place function pointer typedefs here so they are defined before EFI_BOOT_SERVICES
+
+typedef EFI_STATUS (EFIAPI *EFI_GET_MEMORY_MAP)(
+    UINTN *MemoryMapSize,
+    EFI_MEMORY_DESCRIPTOR *MemoryMap,
+    UINTN *MapKey,
+    UINTN *DescriptorSize,
+    UINT32 *DescriptorVersion
+);
+
+typedef EFI_STATUS (EFIAPI *EFI_ALLOCATE_POOL)(
+    uint32_t PoolType,
+    UINTN Size,
+    void **Buffer
+);
+
+typedef EFI_STATUS (EFIAPI *EFI_FREE_POOL)(
+    void *Buffer
+);
+
+typedef EFI_STATUS (EFIAPI *EFI_EXIT_BOOT_SERVICES)(
+    EFI_HANDLE ImageHandle,
+    UINTN MapKey
+);
+
 // UEFI Boot Services
 typedef struct {
     EFI_TABLE_HEADER Hdr;
@@ -259,9 +286,9 @@ typedef struct {
     void* RestoreTPL;
     void* AllocatePages;
     void* FreePages;
-    void* GetMemoryMap;
-    void* AllocatePool;
-    void* FreePool;
+    EFI_GET_MEMORY_MAP GetMemoryMap;
+    EFI_ALLOCATE_POOL AllocatePool;
+    EFI_FREE_POOL FreePool;
     void* CreateEvent;
     void* SetTimer;
     void* WaitForEvent;
@@ -281,7 +308,7 @@ typedef struct {
     void* StartImage;
     EFI_BOOT_EXIT Exit;
     void* UnloadImage;
-    void* ExitBootServices;
+    EFI_EXIT_BOOT_SERVICES ExitBootServices;
     void* GetNextMonotonicCount;
     EFI_BOOT_STALL Stall;
     void* SetWatchdogTimer;
@@ -339,5 +366,8 @@ typedef struct {
 
 // UEFI Application Entry Point
 typedef EFI_STATUS (EFIAPI *EFI_IMAGE_ENTRY_POINT)(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable);
+
+typedef uint64_t UINTN;
+typedef uint32_t UINT32;
 
 #endif // UEFI_H 
