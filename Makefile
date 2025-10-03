@@ -161,10 +161,14 @@ OBJS = $(BOOT_OBJ) $(KERNEL_OBJ) $(IO_OBJ) $(IDT_ASM_OBJ) $(IDT_C_OBJ) \
        $(TEST_OBJ) $(TEST2_OBJ) $(SYSCALL_TEST_OBJ) $(SYSCALL_ASM_OBJ) $(SYSCALL_C_OBJ) \
        $(VERSION_OBJ) $(FAT16_OBJ) $(ATA_OBJ) $(PROGRAM_OBJ) $(EDITOR_OBJ) $(ISO_FS_OBJ) $(ISO_FS_TEST_OBJ) \
        $(PROGRESS_OBJ) $(VBE_OBJ) $(FONT_OBJ) $(STDIO_OBJ) $(ANSI_OBJ) $(BOOT_ANIMATION_OBJ) $(PSF1_PARSER_OBJ) $(FONT_LOADER_OBJ) \
-       $(BOXDRAWING_OBJ) $(PCI_OBJ)
+       $(BOXDRAWING_OBJ) $(PCI_OBJ) $(XHCI_OBJ)
 
 PCI_C = $(DRIVERS_DIR)/pci.c
 PCI_OBJ = $(BUILD_DIR)/pci.o
+
+# USB (xHCI) driver files
+XHCI_C = $(DRIVERS_DIR)/xhci.c
+XHCI_OBJ = $(BUILD_DIR)/xhci.o
 
 # Default target
 .PHONY: all
@@ -364,6 +368,11 @@ $(PCI_OBJ): $(PCI_C) | $(BUILD_DIR)
 	@echo "Compiling PCI..."
 	$(CC) $(CFLAGS) $< -o $@
 
+# Compile xHCI (USB 3.0) driver
+$(XHCI_OBJ): $(XHCI_C) | $(BUILD_DIR)
+	@echo "Compiling xHCI (USB 3.0) driver..."
+	$(CC) $(CFLAGS) $< -o $@
+
 # Link kernel
 $(KERNEL_BIN): $(OBJS)
 	@echo "Linking kernel..."
@@ -384,7 +393,7 @@ $(ISO_IMAGE): $(KERNEL_BIN) | $(BUILD_DIR)
 .PHONY: run
 run: $(ISO_IMAGE)
 	@echo "Running in QEMU..."
-	qemu-system-i386 -machine q35 -m 2G -cdrom $(ISO_IMAGE) -hda fat16.img -boot d -usb -device qemu-xhci
+	qemu-system-i386 -machine q35 -m 2G -cdrom $(ISO_IMAGE) -hda fat16.img -boot d -usb -device qemu-xhci -device usb-kbd
 
 # Clean build files
 .PHONY: clean
