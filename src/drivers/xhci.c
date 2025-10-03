@@ -363,6 +363,140 @@ bool xhci_start_controller(xhci_controller_t* xhci) {
     return true;
 }
 
+// Enable a device slot
+bool xhci_enable_slot(xhci_controller_t* xhci, uint8_t* slot_id) {
+    printf("Enabling device slot...\n");
+    
+    // Create Enable Slot command TRB
+    xhci_trb_t trb;
+    trb.parameter = 0;
+    trb.status = 0;
+    trb.control = (TRB_TYPE_ENABLE_SLOT << 10) | (1 << 0); // Set cycle bit
+    
+    // Post the command
+    if (!xhci_post_command(xhci, &trb)) {
+        printf("Failed to post Enable Slot command\n");
+        return false;
+    }
+    
+    // Wait for and process the command completion event
+    // In a real implementation, we'd wait for an interrupt or poll the event ring
+    // For now, we'll process events synchronously
+    for (int i = 0; i < 100; i++) {
+        if (xhci_process_events(xhci)) {
+            // Event processed - in a full implementation, we'd extract the slot ID
+            // from the command completion event
+            *slot_id = 1; // Simplified: assume slot 1 for now
+            printf("Slot %d enabled\n", *slot_id);
+            return true;
+        }
+        // Small delay
+        for (volatile int j = 0; j < 10000; j++);
+    }
+    
+    printf("Timeout waiting for Enable Slot completion\n");
+    return false;
+}
+
+// Address a device
+bool xhci_address_device(xhci_controller_t* xhci, uint8_t slot_id, uint8_t port_num) {
+    printf("Addressing device in slot %d (port %d)...\n", slot_id, port_num);
+    
+    // Allocate device context
+    xhci_device_context_t* dev_ctx = (xhci_device_context_t*)malloc(sizeof(xhci_device_context_t));
+    if (!dev_ctx) {
+        printf("Failed to allocate device context\n");
+        return false;
+    }
+    memset(dev_ctx, 0, sizeof(xhci_device_context_t));
+    
+    // Allocate input context
+    xhci_input_context_t* input_ctx = (xhci_input_context_t*)malloc(sizeof(xhci_input_context_t));
+    if (!input_ctx) {
+        printf("Failed to allocate input context\n");
+        free(dev_ctx);
+        return false;
+    }
+    memset(input_ctx, 0, sizeof(xhci_input_context_t));
+    
+    // Store contexts
+    xhci->devices[slot_id - 1].device_context = dev_ctx;
+    xhci->devices[slot_id - 1].input_context = input_ctx;
+    xhci->devices[slot_id - 1].in_use = true;
+    xhci->devices[slot_id - 1].slot_id = slot_id;
+    xhci->devices[slot_id - 1].port_num = port_num;
+    
+    // Add to DCBAA
+    xhci->dcbaa[slot_id] = (uint64_t)dev_ctx;
+    
+    // Set input control context (add context flags)
+    input_ctx->input_control_context[1] = 0x3; // A0 and A1 (slot and EP0)
+    
+    // Configure slot context
+    uint32_t portsc = xhci_read_port_reg(xhci, port_num, 0);
+    uint8_t speed = xhci_get_port_speed(portsc);
+    
+    input_ctx->slot_context[0] = (1 << 27); // Context entries = 1 (EP0 only)
+    input_ctx->slot_context[0] |= (speed << 20); // Port speed
+    input_ctx->slot_context[1] = (port_num << 16); // Root hub port number
+    
+    // Configure EP0 context (control endpoint)
+    input_ctx->ep0_context[0] = 0; // Endpoint state
+    input_ctx->ep0_context[1] = (4 << 3); // EP type = Control (bidirectional)
+    input_ctx->ep0_context[1] |= (512 << 16); // Max packet size (512 for SS, 64 for HS/FS)
+    
+    // Create Address Device command TRB
+    xhci_trb_t trb;
+    trb.parameter = (uint64_t)input_ctx;
+    trb.status = 0;
+    trb.control = (TRB_TYPE_ADDRESS_DEVICE << 10) | (slot_id << 24) | (1 << 0);
+    
+    // Post the command
+    if (!xhci_post_command(xhci, &trb)) {
+        printf("Failed to post Address Device command\n");
+        return false;
+    }
+    
+    // Wait for completion
+    for (int i = 0; i < 100; i++) {
+        if (xhci_process_events(xhci)) {
+            printf("Device addressed successfully\n");
+            return true;
+        }
+        for (volatile int j = 0; j < 10000; j++);
+    }
+    
+    printf("Timeout waiting for Address Device completion\n");
+    return false;
+}
+
+// Enumerate a device on a specific port
+bool xhci_enumerate_device(xhci_controller_t* xhci, uint8_t port) {
+    printf("\n=== Enumerating device on port %d ===\n", port + 1);
+    
+    // Reset the port first
+    xhci_reset_port(xhci, port);
+    
+    // Wait for reset to complete
+    for (volatile int i = 0; i < 100000; i++);
+    
+    // Enable a slot for this device
+    uint8_t slot_id;
+    if (!xhci_enable_slot(xhci, &slot_id)) {
+        printf("Failed to enable slot for device\n");
+        return false;
+    }
+    
+    // Address the device
+    if (!xhci_address_device(xhci, slot_id, port)) {
+        printf("Failed to address device\n");
+        return false;
+    }
+    
+    printf("Device enumeration complete for port %d\n", port + 1);
+    return true;
+}
+
 // Probe USB ports for connected devices
 void xhci_probe_ports(xhci_controller_t* xhci) {
     printf("\nProbing USB ports...\n");
@@ -393,6 +527,15 @@ void xhci_probe_ports(xhci_controller_t* xhci) {
             if (portsc & XHCI_PORTSC_PR) printf("  [Reset in progress]\n");
             if (portsc & XHCI_PORTSC_CSC) printf("  [Connect status changed]\n");
             if (portsc & XHCI_PORTSC_PEC) printf("  [Port enabled changed]\n");
+            
+            // Try to enumerate the device
+            if (portsc & XHCI_PORTSC_CSC) {
+                // Clear the connect status change bit
+                xhci_write_port_reg(xhci, port, 0, portsc | XHCI_PORTSC_CSC);
+                
+                // Enumerate the device
+                xhci_enumerate_device(xhci, port);
+            }
             
         } else {
             printf("No device\n");

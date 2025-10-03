@@ -227,6 +227,7 @@ bool xhci_process_events(xhci_controller_t* xhci);
 bool xhci_enable_slot(xhci_controller_t* xhci, uint8_t* slot_id);
 bool xhci_address_device(xhci_controller_t* xhci, uint8_t slot_id, uint8_t port_num);
 bool xhci_configure_endpoint(xhci_controller_t* xhci, uint8_t slot_id);
+bool xhci_enumerate_device(xhci_controller_t* xhci, uint8_t port);
 
 // Port management functions
 uint32_t xhci_read_port_reg(xhci_controller_t* xhci, uint8_t port, uint8_t reg);
