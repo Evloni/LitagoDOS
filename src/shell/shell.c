@@ -22,6 +22,7 @@
 #include "../../include/utils/progress.h"
 #include "../../include/utils/boot_animation.h"
 #include "../../include/drivers/pci.h"
+#include "../../include/drivers/xhci.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -109,7 +110,7 @@ static int cmd_index = 0;
 static const char* builtin_commands[] = {
     "help", "ls", "cat", "echo", "shutdown", "reboot", "memtest",
     "memtest2", "memstats", "syscall", "version", "progtest",
-    "mkfile", "rm", "clear", "edit", "cursortest", "cd", "pci"
+    "mkfile", "rm", "clear", "edit", "cursortest", "cd", "pci", "usb"
 };
 static const int num_builtin_commands = sizeof(builtin_commands) / sizeof(builtin_commands[0]);
 
@@ -447,6 +448,7 @@ static void handle_command(const char* command) {
         terminal_writestring("  edit <file>    - Edit a file\n");
         terminal_writestring("  cursortest     - Test ANSI cursor movement\n");
         terminal_writestring("  pci            - Scan PCI devices\n");
+        terminal_writestring("  usb            - Initialize and scan USB 3.0 devices\n");
     } else if (strcmp(cmd_name, "cursortest") == 0) {
         ansi_set_enabled(true);
         // Test ANSI cursor movement
@@ -555,6 +557,8 @@ static void handle_command(const char* command) {
         test_program_loading();
     } else if (strcmp(cmd_name, "pci") == 0) {
         pci_scan();
+    } else if (strcmp(cmd_name, "usb") == 0) {
+        xhci_init();
     } else if (strcmp(cmd_name, "ls") == 0) {
         const char* path = command + strlen(cmd_name);
         while (*path == ' ') path++;  // Skip spaces

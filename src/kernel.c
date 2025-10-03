@@ -176,10 +176,10 @@ void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 	
 	// Show system ready message
 	terminal_writestring("System initialized successfully!\n");
-	
+	xhci_init();
 
 	// Show boot animation
-	show_boot_animation();
+	//show_boot_animation();
 	
 	
 	// Clean up font resources when shutting down
