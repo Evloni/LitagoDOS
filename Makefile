@@ -375,13 +375,16 @@ $(ISO_IMAGE): $(KERNEL_BIN) | $(BUILD_DIR)
 	cp $(KERNEL_BIN) $(ISO_BOOT_DIR)/kernel.bin
 	cp grub.cfg $(ISO_GRUB_DIR)/grub.cfg
 	cp fat16.img $(ISO_DIR)/fat16.img
+	# Remove any existing EFI directories
+	rm -rf $(ISO_DIR)/EFI $(ISO_DIR)/efi
+	# Create legacy BIOS only ISO
 	grub-mkrescue -o $@ $(ISO_DIR)
 
 # Run in QEMU
 .PHONY: run
 run: $(ISO_IMAGE)
 	@echo "Running in QEMU..."
-	qemu-system-i386 -machine pc -m 2G -cdrom $(ISO_IMAGE) -hda fat16.img -boot d
+	qemu-system-i386 -machine q35 -m 2G -cdrom $(ISO_IMAGE) -hda fat16.img -boot d -usb -device qemu-xhci
 
 # Clean build files
 .PHONY: clean

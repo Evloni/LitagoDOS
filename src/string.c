@@ -15,7 +15,7 @@ static void reverse(char* str, int length) {
 }
 
 // Convert integer to string in the given base
-char* itoa(int value, char* str, int base) {
+char* itoa_custom(int value, char* str, int base) {
     int i = 0;
     int is_negative = 0;
 
@@ -214,12 +214,12 @@ int vsnprintf(char* str, size_t size, const char* format, va_list ap) {
                 while (*s && i + 1 < size) str[i++] = *s++;
             } else if (*p == 'd') {
                 int val = va_arg(ap, int);
-                itoa(val, buf, 10);
+                itoa_custom(val, buf, 10);
                 const char* s = buf;
                 while (*s && i + 1 < size) str[i++] = *s++;
             } else if (*p == 'x') {
                 int val = va_arg(ap, int);
-                itoa(val, buf, 16);
+                itoa_custom(val, buf, 16);
                 const char* s = buf;
                 while (*s && i + 1 < size) str[i++] = *s++;
             } else if (*p == 'c') {

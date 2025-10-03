@@ -256,7 +256,7 @@ bool fat16_read_root_dir(void) {
             terminal_writestring("        ");
         } else {
             char size_str[16];
-            itoa(root_dir[i].file_size, size_str, 10);
+            itoa_custom(root_dir[i].file_size, size_str, 10);
             terminal_writestring(size_str);
             int size_len = strlen(size_str);
             for (int s = size_len; s < 8; s++) {

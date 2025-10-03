@@ -45,4 +45,3 @@ grub.cfg
 isodir/boot/kernel.bin
 isodir/*.*
 .vscode/*
-build_uefi/*

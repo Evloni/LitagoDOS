@@ -15,7 +15,7 @@ static void reverse(char* str, int length) {
     }
 }
 
-static int itoa(int num, char* str, int base) {
+static int itoa_custom(int num, char* str, int base) {
     int i = 0;
     bool isNegative = false;
 
@@ -69,12 +69,12 @@ int sprintf(char* str, const char* format, ...) {
             switch (format[i]) {
                 case 'd': {
                     int num = va_arg(args, int);
-                    j += itoa(num, &str[j], 10);
+                    j += itoa_custom(num, &str[j], 10);
                     break;
                 }
                 case 'x': {
                     int num = va_arg(args, int);
-                    j += itoa(num, &str[j], 16);
+                    j += itoa_custom(num, &str[j], 16);
                     break;
                 }
                 case 'c': {
@@ -128,7 +128,7 @@ int printf(const char* format, ...) {
                 case 'd': {
                     int num = va_arg(args, int);
                     char num_str[32];
-                    int len = itoa(num, num_str, 10);
+                    int len = itoa_custom(num, num_str, 10);
                     
                     // Add padding if width is specified
                     while (len < width) {
@@ -137,7 +137,7 @@ int printf(const char* format, ...) {
                     }
                     
                     // Copy the number
-                    for (int k = 0; k < itoa(num, num_str, 10); k++) {
+                    for (int k = 0; k < itoa_custom(num, num_str, 10); k++) {
                         buffer[j++] = num_str[k];
                     }
                     break;
@@ -145,7 +145,7 @@ int printf(const char* format, ...) {
                 case 'x': {
                     int num = va_arg(args, int);
                     char num_str[32];
-                    int len = itoa(num, num_str, 16);
+                    int len = itoa_custom(num, num_str, 16);
                     
                     // Add zero padding if width is specified
                     while (len < width) {
@@ -154,7 +154,7 @@ int printf(const char* format, ...) {
                     }
                     
                     // Copy the number
-                    for (int k = 0; k < itoa(num, num_str, 16); k++) {
+                    for (int k = 0; k < itoa_custom(num, num_str, 16); k++) {
                         buffer[j++] = num_str[k];
                     }
                     break;
@@ -163,7 +163,7 @@ int printf(const char* format, ...) {
                     int num = va_arg(args, int);
                     char num_str[32];
                     int start_pos = j;
-                    int len = itoa(num, num_str, 16);
+                    int len = itoa_custom(num, num_str, 16);
                     
                     // Add zero padding if width is specified
                     while (len < width) {
@@ -172,7 +172,7 @@ int printf(const char* format, ...) {
                     }
                     
                     // Copy the number
-                    for (int k = 0; k < itoa(num, num_str, 16); k++) {
+                    for (int k = 0; k < itoa_custom(num, num_str, 16); k++) {
                         buffer[j++] = num_str[k];
                     }
                     
@@ -209,7 +209,7 @@ int printf(const char* format, ...) {
                 case 'u': {
                     unsigned int num = va_arg(args, unsigned int);
                     char num_str[32];
-                    int len = itoa((int)num, num_str, 10);
+                    int len = itoa_custom((int)num, num_str, 10);
                     
                     // Add padding if width is specified
                     while (len < width) {
@@ -218,7 +218,7 @@ int printf(const char* format, ...) {
                     }
                     
                     // Copy the number
-                    for (int k = 0; k < itoa((int)num, num_str, 10); k++) {
+                    for (int k = 0; k < itoa_custom((int)num, num_str, 10); k++) {
                         buffer[j++] = num_str[k];
                     }
                     break;
@@ -226,7 +226,7 @@ int printf(const char* format, ...) {
                 case 'o': {
                     int num = va_arg(args, int);
                     char num_str[32];
-                    int len = itoa(num, num_str, 8);
+                    int len = itoa_custom(num, num_str, 8);
                     
                     // Add padding if width is specified
                     while (len < width) {
@@ -235,7 +235,7 @@ int printf(const char* format, ...) {
                     }
                     
                     // Copy the number
-                    for (int k = 0; k < itoa(num, num_str, 8); k++) {
+                    for (int k = 0; k < itoa_custom(num, num_str, 8); k++) {
                         buffer[j++] = num_str[k];
                     }
                     break;
@@ -245,7 +245,7 @@ int printf(const char* format, ...) {
                     buffer[j++] = '0';
                     buffer[j++] = 'x';
                     char num_str[32];
-                    int len = itoa((int)(uintptr_t)ptr, num_str, 16);
+                    int len = itoa_custom((int)(uintptr_t)ptr, num_str, 16);
                     
                     // Add zero padding if width is specified
                     while (len < width) {
@@ -254,7 +254,7 @@ int printf(const char* format, ...) {
                     }
                     
                     // Copy the number
-                    for (int k = 0; k < itoa((int)(uintptr_t)ptr, num_str, 16); k++) {
+                    for (int k = 0; k < itoa_custom((int)(uintptr_t)ptr, num_str, 16); k++) {
                         buffer[j++] = num_str[k];
                     }
                     break;

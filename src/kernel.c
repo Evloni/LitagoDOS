@@ -20,7 +20,6 @@
 #include "../include/drivers/font_loader.h"
 #include "./GUI/BOXDRAWING/boxDrawing.h"
 #include "../include/drivers/vbe.h"
-#include "../include/drivers/pci.h"
 #include <stddef.h>
 
 // Multiboot magic number
@@ -40,7 +39,7 @@ void delay_animation(int dots, int start_x, int y) {
 }
 
 void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
-	// Initialize VBE first
+	// Initialize VBE first (with fallback to text mode)
 	vbe_init(multiboot_magic, multiboot_info);
 	
 	// Clear screen with black background
@@ -177,10 +176,10 @@ void kernel_main(uint32_t multiboot_magic, void* multiboot_info) {
 	
 	// Show system ready message
 	terminal_writestring("System initialized successfully!\n");
-	pci_scan();
+	
 
 	// Show boot animation
-	//show_boot_animation();
+	show_boot_animation();
 	
 	
 	// Clean up font resources when shutting down
