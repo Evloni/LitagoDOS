@@ -1,5 +1,6 @@
 #include "../../include/drivers/xhci.h"
 #include "../../include/drivers/pci.h"
+#include "../../include/drivers/usb_descriptors.h"
 #include "../../include/io.h"
 #include "../../include/stdio.h"
 #include "../../include/memory/heap.h"
@@ -470,6 +471,126 @@ bool xhci_address_device(xhci_controller_t* xhci, uint8_t slot_id, uint8_t port_
     return false;
 }
 
+// Perform a control transfer
+bool xhci_control_transfer(xhci_controller_t* xhci, uint8_t slot_id, void* setup_packet, 
+                          void* data, uint16_t length, bool direction_in) {
+    // For now, this is a simplified stub
+    // In a full implementation, we would:
+    // 1. Set up a transfer ring for EP0
+    // 2. Post SETUP, DATA (optional), and STATUS TRBs
+    // 3. Ring the doorbell
+    // 4. Wait for transfer completion events
+    
+    printf("Control transfer to slot %d (length: %d, dir: %s)\n", 
+           slot_id, length, direction_in ? "IN" : "OUT");
+    
+    // TODO: Implement actual control transfer
+    return true;
+}
+
+// Get device descriptor
+bool xhci_get_device_descriptor(xhci_controller_t* xhci, uint8_t slot_id, void* buffer) {
+    printf("Reading device descriptor...\n");
+    
+    usb_setup_packet_t setup;
+    setup.bmRequestType = USB_SETUP_DEVICE_TO_HOST(USB_REQ_TYPE_STANDARD | USB_REQ_RECIPIENT_DEVICE);
+    setup.bRequest = USB_REQ_GET_DESCRIPTOR;
+    setup.wValue = (USB_DESC_DEVICE << 8) | 0; // Descriptor type and index
+    setup.wIndex = 0;
+    setup.wLength = sizeof(usb_device_descriptor_t);
+    
+    if (!xhci_control_transfer(xhci, slot_id, &setup, buffer, setup.wLength, true)) {
+        printf("Failed to get device descriptor\n");
+        return false;
+    }
+    
+    // Parse and display descriptor info
+    usb_device_descriptor_t* desc = (usb_device_descriptor_t*)buffer;
+    printf("  USB Version: %x.%x\n", desc->bcdUSB >> 8, desc->bcdUSB & 0xFF);
+    printf("  Device Class: 0x%02x\n", desc->bDeviceClass);
+    printf("  Vendor ID: 0x%04x\n", desc->idVendor);
+    printf("  Product ID: 0x%04x\n", desc->idProduct);
+    printf("  Max Packet Size: %d\n", desc->bMaxPacketSize0);
+    printf("  Configurations: %d\n", desc->bNumConfigurations);
+    
+    return true;
+}
+
+// Get configuration descriptor
+bool xhci_get_configuration_descriptor(xhci_controller_t* xhci, uint8_t slot_id, void* buffer, uint16_t length) {
+    printf("Reading configuration descriptor...\n");
+    
+    usb_setup_packet_t setup;
+    setup.bmRequestType = USB_SETUP_DEVICE_TO_HOST(USB_REQ_TYPE_STANDARD | USB_REQ_RECIPIENT_DEVICE);
+    setup.bRequest = USB_REQ_GET_DESCRIPTOR;
+    setup.wValue = (USB_DESC_CONFIGURATION << 8) | 0;
+    setup.wIndex = 0;
+    setup.wLength = length;
+    
+    if (!xhci_control_transfer(xhci, slot_id, &setup, buffer, length, true)) {
+        printf("Failed to get configuration descriptor\n");
+        return false;
+    }
+    
+    // Parse configuration descriptor
+    usb_config_descriptor_t* config = (usb_config_descriptor_t*)buffer;
+    printf("  Configuration: %d\n", config->bConfigurationValue);
+    printf("  Interfaces: %d\n", config->bNumInterfaces);
+    printf("  Total Length: %d\n", config->wTotalLength);
+    
+    // Parse interface descriptors
+    uint8_t* ptr = (uint8_t*)buffer + sizeof(usb_config_descriptor_t);
+    uint8_t* end = (uint8_t*)buffer + config->wTotalLength;
+    
+    while (ptr < end) {
+        uint8_t desc_len = ptr[0];
+        uint8_t desc_type = ptr[1];
+        
+        if (desc_type == USB_DESC_INTERFACE) {
+            usb_interface_descriptor_t* iface = (usb_interface_descriptor_t*)ptr;
+            printf("  Interface %d: Class 0x%02x, SubClass 0x%02x, Protocol 0x%02x\n",
+                   iface->bInterfaceNumber, iface->bInterfaceClass, 
+                   iface->bInterfaceSubClass, iface->bInterfaceProtocol);
+            
+            // Check if it's a HID keyboard
+            if (iface->bInterfaceClass == USB_CLASS_HID &&
+                iface->bInterfaceSubClass == HID_SUBCLASS_BOOT &&
+                iface->bInterfaceProtocol == HID_PROTOCOL_KEYBOARD) {
+                printf("    >>> HID Boot Keyboard detected! <<<\n");
+            }
+        } else if (desc_type == USB_DESC_ENDPOINT) {
+            usb_endpoint_descriptor_t* ep = (usb_endpoint_descriptor_t*)ptr;
+            printf("  Endpoint 0x%02x: Type %d, Max Packet %d, Interval %d\n",
+                   ep->bEndpointAddress, ep->bmAttributes & 0x03,
+                   ep->wMaxPacketSize, ep->bInterval);
+        }
+        
+        ptr += desc_len;
+    }
+    
+    return true;
+}
+
+// Set configuration
+bool xhci_set_configuration(xhci_controller_t* xhci, uint8_t slot_id, uint8_t config_value) {
+    printf("Setting configuration %d...\n", config_value);
+    
+    usb_setup_packet_t setup;
+    setup.bmRequestType = USB_SETUP_HOST_TO_DEVICE(USB_REQ_TYPE_STANDARD | USB_REQ_RECIPIENT_DEVICE);
+    setup.bRequest = USB_REQ_SET_CONFIGURATION;
+    setup.wValue = config_value;
+    setup.wIndex = 0;
+    setup.wLength = 0;
+    
+    if (!xhci_control_transfer(xhci, slot_id, &setup, NULL, 0, false)) {
+        printf("Failed to set configuration\n");
+        return false;
+    }
+    
+    printf("Configuration set successfully\n");
+    return true;
+}
+
 // Enumerate a device on a specific port
 bool xhci_enumerate_device(xhci_controller_t* xhci, uint8_t port) {
     printf("\n=== Enumerating device on port %d ===\n", port + 1);
@@ -493,7 +614,29 @@ bool xhci_enumerate_device(xhci_controller_t* xhci, uint8_t port) {
         return false;
     }
     
-    printf("Device enumeration complete for port %d\n", port + 1);
+    // Read device descriptor
+    usb_device_descriptor_t dev_desc;
+    if (!xhci_get_device_descriptor(xhci, slot_id, &dev_desc)) {
+        printf("Failed to read device descriptor\n");
+        return false;
+    }
+    
+    // Read configuration descriptor
+    uint8_t config_buffer[256];
+    if (!xhci_get_configuration_descriptor(xhci, slot_id, config_buffer, sizeof(config_buffer))) {
+        printf("Failed to read configuration descriptor\n");
+        return false;
+    }
+    
+    // Set configuration
+    usb_config_descriptor_t* config = (usb_config_descriptor_t*)config_buffer;
+    if (!xhci_set_configuration(xhci, slot_id, config->bConfigurationValue)) {
+        printf("Failed to set configuration\n");
+        return false;
+    }
+    
+    printf("\nDevice enumeration complete for port %d\n", port + 1);
+    printf("Device is ready for use!\n");
     return true;
 }
 

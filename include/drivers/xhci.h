@@ -238,6 +238,13 @@ void xhci_reset_port(xhci_controller_t* xhci, uint8_t port);
 uint8_t xhci_get_port_speed(uint32_t portsc);
 const char* xhci_get_speed_string(uint8_t speed);
 
+// Transfer functions
+bool xhci_control_transfer(xhci_controller_t* xhci, uint8_t slot_id, void* setup_packet, 
+                          void* data, uint16_t length, bool direction_in);
+bool xhci_get_device_descriptor(xhci_controller_t* xhci, uint8_t slot_id, void* buffer);
+bool xhci_get_configuration_descriptor(xhci_controller_t* xhci, uint8_t slot_id, void* buffer, uint16_t length);
+bool xhci_set_configuration(xhci_controller_t* xhci, uint8_t slot_id, uint8_t config_value);
+
 // Global controller instance
 extern xhci_controller_t* g_xhci;
 
