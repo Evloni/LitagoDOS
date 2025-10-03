@@ -16,7 +16,6 @@ static struct idt_entry idt[256];
 // IDT pointer
 struct idt_pointer idt_ptr;
 
-// External assembly functions
 extern void irq0();
 extern void irq1();
 extern void idt_load(void);
@@ -85,10 +84,10 @@ void idt_init() {
     
     // Set up timer interrupt
     idt_set_gate(0x20, (uint32_t)irq0, 0x08, 0x8E);
-    
+
     // Set up keyboard interrupt
     idt_set_gate(0x21, (uint32_t)irq1, 0x08, 0x8E);
-    
+
     // Set up syscall handler
     idt_set_gate(0x80, (uint32_t)syscall_entry, 0x08, 0xEE);
     

@@ -21,6 +21,8 @@
 #include "../../include/multiboot.h"
 #include "../../include/utils/progress.h"
 #include "../../include/utils/boot_animation.h"
+#include "../../include/drivers/pci.h"
+#include "../../include/drivers/xhci.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -108,7 +110,7 @@ static int cmd_index = 0;
 static const char* builtin_commands[] = {
     "help", "ls", "cat", "echo", "shutdown", "reboot", "memtest",
     "memtest2", "memstats", "syscall", "version", "progtest",
-    "mkfile", "rm", "clear", "edit", "cursortest", "cd"
+    "mkfile", "rm", "clear", "edit", "cursortest", "cd", "pci", "usb"
 };
 static const int num_builtin_commands = sizeof(builtin_commands) / sizeof(builtin_commands[0]);
 
@@ -245,16 +247,16 @@ static void print_mem_size(uint64_t bytes) {
 
     char buf[32];
     if (gb > 0) {
-        itoa(gb, buf, 10);
+        itoa_custom(gb, buf, 10);
         terminal_writestring(buf);
         terminal_writestring(" GB ");
     }
     if (mb > 0 || gb > 0) {
-        itoa(mb, buf, 10);
+        itoa_custom(mb, buf, 10);
         terminal_writestring(buf);
         terminal_writestring(" MB ");
     }
-    itoa(kb, buf, 10);
+    itoa_custom(kb, buf, 10);
     terminal_writestring(buf);
     terminal_writestring(" KB");
 }
@@ -445,6 +447,8 @@ static void handle_command(const char* command) {
         terminal_writestring("  clear          - Clear the screen\n");
         terminal_writestring("  edit <file>    - Edit a file\n");
         terminal_writestring("  cursortest     - Test ANSI cursor movement\n");
+        terminal_writestring("  pci            - Scan PCI devices\n");
+        terminal_writestring("  usb            - Initialize and scan USB 3.0 devices\n");
     } else if (strcmp(cmd_name, "cursortest") == 0) {
         ansi_set_enabled(true);
         // Test ANSI cursor movement
@@ -551,6 +555,10 @@ static void handle_command(const char* command) {
         version();
     } else if (strcmp(cmd_name, "progtest") == 0) {
         test_program_loading();
+    } else if (strcmp(cmd_name, "pci") == 0) {
+        pci_scan();
+    } else if (strcmp(cmd_name, "usb") == 0) {
+        xhci_init();
     } else if (strcmp(cmd_name, "ls") == 0) {
         const char* path = command + strlen(cmd_name);
         while (*path == ' ') path++;  // Skip spaces
@@ -603,7 +611,7 @@ static void handle_command(const char* command) {
                     terminal_writestring("        ");
                 } else {
                     char size_str[16];
-                    itoa(dir_entries[i].file_size, size_str, 10);
+                    itoa_custom(dir_entries[i].file_size, size_str, 10);
                     terminal_writestring(size_str);
                     int size_len = strlen(size_str);
                     for (int s = size_len; s < 8; s++) {

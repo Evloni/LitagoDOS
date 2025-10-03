@@ -1,5 +1,6 @@
 #include "../include/drivers/pci.h"
 #include <stddef.h>
+#include "../include/stdio.h"
 
 typedef struct {
     uint16_t vendor_id;
@@ -11,15 +12,26 @@ typedef struct {
 static const pci_device_t pci_devices[] = {
     {0x8086, 0x1237, "Intel Corporation", "440FX - 82441FX PMC [Natoma]"},
     {0x8086, 0x7000, "Intel Corporation", "82371SB PIIX3 ISA [Natoma/Triton II]"},
-    {0x8086, 0x7010, "Intel Corporation", "82371SB PIIX3 ISA [Natoma/Triton II]"},
+    {0x8086, 0x7010, "Intel Corporation", "82371SB PIIX3 IDE [Natoma/Triton II]"},
     {0x8086, 0x7113, "Intel Corporation", "82371AB/EB/MB PIIX4 ACPI"},
     {0x8086, 0x100E, "Intel Corporation", "82540EM Gigabit Ethernet Controller"},
     {0x1234, 0x1111, "Bochs", "VGA Compatible Graphics Adapter"},
+    {0x8086, 0x29c0, "Intel Corporation", "Express DRAM Controller"},
+    {0x8086, 0x10d3, "Intel Corporation", "Gigabit Network Connection"},
+    {0x8086, 0x2918, "Intel Corporation", "LPC Interface Controller"},
+    {0x8086, 0x2922, "Intel Corporation", "6 port SATA Controller [AHCI mode]"},
+    {0x8086, 0x2930, "Intel Corporation", "SMBus Controller"},
+    {0x8086, 0x2934, "Intel Corporation", "USB UHCI Controller #1"},
+    {0x8086, 0x2935, "Intel Corporation", "USB UHCI Controller #2"},
+    {0x8086, 0x2936, "Intel Corporation", "USB UHCI Controller #3"},
+    {0x8086, 0x293a, "Intel Corporation", "USB2 EHCI Controller #1"},
+    {0x1B36, 0x000D, "QEMU", "XHCI Host Controller"},
 
+    {0, 0, NULL, NULL},
 };
 
 const pci_device_t* find_pci_device(uint16_t vendor, uint16_t device) {
-    for (int i = 0; pci_devices[i].vendor_name; i++) {
+    for (int i = 0; pci_devices[i].vendor_name != NULL; i++) {
         if (pci_devices[i].vendor_id == vendor && pci_devices[i].device_id == device) {
             return &pci_devices[i];
         }

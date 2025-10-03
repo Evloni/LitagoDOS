@@ -15,6 +15,9 @@ extern uint16_t current_cluster;
 // Initialize the shell
 void shell_init(void);
 
+// Start the shell (initializes and runs the main loop)
+void shell_start(void);
+
 // Run the shell command processing loop
 void shell_run(void);
 

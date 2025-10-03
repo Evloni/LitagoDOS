@@ -2,8 +2,8 @@ section .multiboot
 align 4
     ; Multiboot header
     dd 0x1BADB002              ; Magic number
-    dd 0x04                    ; Flags (0x04 = VBE mode)
-    dd -(0x1BADB002 + 0x04)    ; Checksum
+    dd 0x00000004              ; Flags (0x04 = page align + memory info + VBE mode)
+    dd -(0x1BADB002 + 0x00000004)    ; Checksum
 
     ; VBE information
     dd 0                       ; Header address
